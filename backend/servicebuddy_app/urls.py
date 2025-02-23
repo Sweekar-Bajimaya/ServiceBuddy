@@ -10,4 +10,6 @@ urlpatterns = [
     path('bills/', BillGeneration.as_view(), name='bill_generation'),
     path('add-service/', AddServiceView.as_view(), name='add_service'),
     path('my-bookings/', MyBookings.as_view(), name='my_bookings'),
+    path('password-reset/', RequestPasswordResetView.as_view(), name='password_reset'),
+    path('password-reset-confirm/', PasswordResetConfirmView.as_view(),name='password_reset_confirm'),
 ]

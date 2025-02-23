@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .serializers import RegisterSerializer, LoginSerializer, ServiceRequestSerializer
 from .db import MONGO_DB
-from .utils import generate_tokens
+from .utils import generate_tokens, generate_reset_token, verify_reset_token
 from datetime import datetime
 from django.contrib.auth.hashers import make_password, check_password
 from bson.objectid import ObjectId
@@ -12,6 +12,7 @@ import jwt
 from datetime import datetime, timedelta
 from django.conf import settings
 from .permissions import IsProvider, IsUser  # Import your custom permissions
+from django.core.mail import send_mail
 
 class RegisterView(APIView):
     # Allow unauthenticated access
@@ -73,6 +74,7 @@ class LoginView(APIView):
                 "name": user["name"]
             }
         }, status=status.HTTP_200_OK)
+               
 
 class AddServiceView(APIView):
     # Only providers are allowed to add services to their list.
@@ -186,7 +188,6 @@ class ServiceRequestUpdate(APIView):
         }
         MONGO_DB.notifications.insert_one(notification)
         return Response({"message": f"Service request {action}ed."}, status=status.HTTP_200_OK)
-
 
 
 class BillGeneration(APIView):
@@ -303,3 +304,58 @@ class MyBookings(APIView):
             })
 
         return Response(results, status=status.HTTP_200_OK)
+
+
+class RequestPasswordResetView(APIView):
+    # Allow unauthenticated access
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Find user by email (assuming they are stored in the "users" collection)
+        user = MONGO_DB.users.find_one({"email": email})
+        if not user:
+            return Response({"error": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Generate reset token
+        token = generate_reset_token(user)
+
+        # Construct password reset link (adjust the frontend URL accordingly)
+        reset_link = f"http://localhost:3000/reset-password?token={token}"
+
+        # Send email
+        subject = "Password Reset Request for ServiceBuddy"
+        message = f"Hi {user['name']},\n\nClick the link below to reset your password:\n{reset_link}\n\nThis link expires in 30 minutes.\n\nIf you did not request a password reset, please ignore this email."
+        send_mail(subject, message, None, [email])
+
+        return Response({"message": "Password reset link sent to your email."}, status=status.HTTP_200_OK)
+    
+class PasswordResetConfirmView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        token = request.data.get("token")
+        new_password = request.data.get("new_password")
+        if not token or not new_password:
+            return Response({"error": "Token and new_password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        payload = verify_reset_token(token)
+        if not payload:
+            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_id = payload.get("user_id")
+        # Update the user's password in MongoDB (ensure to hash it)
+        result = MONGO_DB.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {"password": make_password(new_password)}}
+        )
+
+        if result.modified_count:
+            return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Failed to reset password."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

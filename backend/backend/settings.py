@@ -125,6 +125,14 @@ USE_I18N = True
 
 USE_TZ = True
 
+#Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.example.com'         # e.g., smtp.gmail.com for Gmail
+EMAIL_PORT = 587                        # or 465 if using SSL
+EMAIL_HOST_USER = 'your-email@example.com'
+EMAIL_HOST_PASSWORD = 'your-email-password'
+EMAIL_USE_TLS = True                    # or EMAIL_USE_SSL if applicable
+DEFAULT_FROM_EMAIL = 'ServiceBuddy <no-reply@servicebuddy.com>'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/

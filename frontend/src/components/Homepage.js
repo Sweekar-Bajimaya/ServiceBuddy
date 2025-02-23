@@ -139,8 +139,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Typography, AppBar, Toolbar, IconButton, Stack, Button, Box, Avatar, Menu, MenuItem, Container, Grid, Card, CardContent } from "@mui/material";
-import ConstructionIcon from "@mui/icons-material/Construction";
-import PlaceIcon from "@mui/icons-material/Place";
+
 // import Services from "./Services";
 import Navbar from "./common/Navbar";
 import Footer from "./common/Footer";
@@ -179,35 +178,7 @@ const HomePage = () => {
 
   return (
     <>
-      {/* Transparent Navigation Bar
-      <AppBar position="absolute" sx={{ backgroundColor: "transparent", boxShadow: "none", px: 16 }}>
-        <Toolbar>
-          <IconButton edge="start" color="inherit">
-            <ConstructionIcon />
-          </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: "bold" }}>
-            ServiceBuddy
-          </Typography>
-
-          <Stack direction="row" spacing={3}>
-            <Button color="inherit" component={Link} to="/about">About Us</Button>
-            <Button color="inherit" component={Link} to="/services">Services</Button>
-            <Button color="inherit" component={Link} to="/contact">Contact</Button>
-            {isAuthenticated ? (
-            <>
-              <Avatar onClick={handleAvatarClick} sx={{ cursor: "pointer" }}>{username[0]?.toUpperCase()}</Avatar>
-              <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-                <MenuItem onClick={handleMenuClose}>Profile</MenuItem>
-                <MenuItem onClick={() => { handleMenuClose(); window.location.href = "/mybookings"; }}>My Bookings</MenuItem>
-                <MenuItem onClick={handleLogout}>Logout</MenuItem>
-              </Menu>
-            </>
-          ) : (
-            <Button color="inherit" component={Link} to="/login">Login</Button>
-          )}
-          </Stack>
-        </Toolbar>
-      </AppBar> */}
+      {/* Transparent Navigation Bar */}
       <Navbar/>
 
       {/* Hero Section */}

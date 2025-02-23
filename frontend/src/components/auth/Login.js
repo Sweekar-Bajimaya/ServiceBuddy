@@ -13,60 +13,6 @@ import { loginUser } from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 
-// const Login = () => {
-//   const { login } = useContext(AuthContext);
-//   const navigate = useNavigate();
-//   const [form, setForm] = useState({ email: '', password: '' });
-//   const [error, setError] = useState('');
-
-//   const handleChange = (e) => {
-//     setForm({ ...form, [e.target.name]: e.target.value });
-//   };
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     try {
-//       const res = await loginUser(form);
-//       // res.data = { access, refresh, user }
-//       login(res.data.user, res.data.access);
-//       navigate("/"); // redirect to provider listing or any route
-//     } catch (err) {
-//       setError('Invalid credentials or server error');
-//     }
-//   };
-
-//   return (
-//     <Box sx={{ maxWidth: 400, mx: 'auto', mt: 8 }}>
-//       <Typography variant="h5" gutterBottom>Login</Typography>
-//       <form onSubmit={handleSubmit}>
-//         <TextField
-//           fullWidth
-//           margin="normal"
-//           label="Email"
-//           name="email"
-//           value={form.email}
-//           onChange={handleChange}
-//         />
-//         <TextField
-//           fullWidth
-//           margin="normal"
-//           label="Password"
-//           type="password"
-//           name="password"
-//           value={form.password}
-//           onChange={handleChange}
-//         />
-//         {error && <Typography color="error">{error}</Typography>}
-//         <Button variant="contained" type="submit" fullWidth sx={{ mt: 2 }}>
-//           Login
-//         </Button>
-//       </form>
-//     </Box>
-//   );
-// };
-
-// export default Login;
-
 const Login = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -171,7 +117,7 @@ const Login = () => {
                 justifyContent="space-between"
                 flexWrap="wrap"
               >
-                <Link component={Link} to="#" underline="hover">
+                <Link component={Link} to="/reset-password" underline="hover">
                   Forgot password?
                 </Link>
                 <Link component={Link} to="/register" underline="hover">

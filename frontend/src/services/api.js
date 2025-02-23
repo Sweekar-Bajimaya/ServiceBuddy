@@ -36,3 +36,8 @@ export const getMyBookings = () => API.get('/my-bookings/');
 
 // Notifications endpoint (example)
 export const getNotifications = () => API.get('/notifications/');
+
+export const forgotPassword = (data) => API.post('/password-reset/', data);
+
+export const resetPassword = (data) => API.post('/password-reset-confirm/', data);
+

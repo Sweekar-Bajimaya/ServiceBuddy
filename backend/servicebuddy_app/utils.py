@@ -24,3 +24,25 @@ def generate_tokens(user):
     }
     refresh_token = jwt.encode(refresh_payload, settings.SECRET_KEY, algorithm="HS256")
     return access_token, refresh_token
+
+def generate_reset_token(user):
+    payload = {
+        "user_id": str(user["_id"]),
+        "email": user["email"],
+        "purpose": "password_reset",
+        "exp": datetime.utcnow() + timedelta(minutes=30)
+    }
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+    return token
+
+def verify_reset_token(token):
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        # Ensure the token is for password reset
+        if payload.get("purpose") != "password_reset":
+            return None
+        return payload
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None

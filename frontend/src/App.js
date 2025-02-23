@@ -7,6 +7,9 @@ import ProviderList from './components/providers/ProviderList';
 import MyBookings from './components/requests/MyBookings';
 import ServiceRequestCreate from './components/requests/ServiceRequestCreate';
 import BillGeneration from './components/bills/BillGeneration';
+import ServicesPage from './components/Servicepage';
+import ForgotPassword from './components/auth/ForgotPassword';
+import ResetPassword from './components/auth/ResetPassword';
 import './App.css';
 
 function App() {
@@ -16,12 +19,15 @@ function App() {
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Protected Routes (example approach) */}
         <Route path="/providers" element={<ProviderList />} />
         <Route path="/my-bookings" element={<MyBookings />} />
         <Route path="/request-service" element={<ServiceRequestCreate />} />
         <Route path="/generate-bill" element={<BillGeneration />} />
+        <Route path="/services" element={<ServicesPage />}/>
 
         {/* Default redirect to Homepage */}
         <Route path="/" element={<HomePage />} />
