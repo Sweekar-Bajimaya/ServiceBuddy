@@ -42,41 +42,45 @@ const Navbar = () => {
           ServiceBuddy
         </Typography>
         <Stack direction="row" spacing={3}>
-          <Button color="inherit" component={Link} to="/about">About Us</Button>
-          <Button color="inherit" component={Link} to="/services">Services</Button>
-          <Button color="inherit" component={Link} to="/contact">Contact</Button>
-          {user ? (
-            <Box>
-              <IconButton onClick={handleMenuOpen} size="large" sx={{ p: 0 }}>
-                <Avatar alt={user.name} src={user.avatar || ''} />
-              </IconButton>
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleMenuClose}
-                PaperProps={{
-                  elevation: 3,
-                  sx: { mt: 1 },
-                }}
-                anchorOrigin={{
-                  vertical: 'bottom',
-                  horizontal: 'right',
-                }}
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
-                }}
-              >
-                <MenuItem onClick={handleMyBookings}>My Bookings</MenuItem>
-                <MenuItem onClick={handleLogout}>Logout</MenuItem>
-              </Menu>
-            </Box>
-          ) : (
-            <Button color="inherit" onClick={() => navigate('/login')}>
-              Login
-            </Button>
-          )}
-        </Stack> 
+        <Button color="inherit" component={Link} to="/about">About Us</Button>
+        <Button color="inherit" component={Link} to="/services">Services</Button>
+        <Button color="inherit" component={Link} to="/contact">Contact</Button>
+        {user ? (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <IconButton onClick={handleMenuOpen} size="large" sx={{ p: 0 }}>
+              <Avatar alt={user.name} src={user.avatar || ''} />
+            </IconButton>
+            <Typography variant="body1" sx={{ color: "inherit", cursor: "pointer" }} onClick={handleMenuOpen}>
+              {user.name}
+            </Typography>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+              PaperProps={{
+                elevation: 3,
+                sx: { mt: 1 },
+              }}
+              anchorOrigin={{
+                vertical: "bottom",
+                horizontal: "right",
+              }}
+              transformOrigin={{
+                vertical: "top",
+                horizontal: "right",
+              }}
+            >
+              <MenuItem onClick={handleMyBookings}>My Bookings</MenuItem>
+              <MenuItem onClick={handleLogout}>Logout</MenuItem>
+            </Menu>
+          </Box>
+        ) : (
+          <Button color="inherit" onClick={() => navigate("/login")}>
+            Login
+          </Button>
+        )}
+      </Stack>
+ 
       </Toolbar>
     </AppBar>
   );

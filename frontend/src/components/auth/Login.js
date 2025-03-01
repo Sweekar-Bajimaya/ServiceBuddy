@@ -29,7 +29,13 @@ const Login = () => {
       const res = await loginUser(form);
       // res.data = { access, refresh, user }
       login(res.data.user, res.data.access);
-      navigate("/"); // redirect to provider listing or any route
+      
+      // Check user_type and redirect
+      if (res.data.user.user_type === 'provider') {
+        navigate('/provider-dashboard');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       setError("Invalid credentials or server error");
     }

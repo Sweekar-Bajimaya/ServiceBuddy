@@ -41,3 +41,4 @@ export const forgotPassword = (data) => API.post('/password-reset/', data);
 
 export const resetPassword = (data) => API.post('/password-reset-confirm/', data);
 
+export const getProviderRequests = () => API.get('/provider-requests/')

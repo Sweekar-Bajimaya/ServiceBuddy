@@ -139,6 +139,7 @@ class ServiceRequestCreate(APIView):
         # Prepare the service request data
         service_request = {
             "user_id": request.user["user_id"],
+            # "username": request.user["name"],
             "provider_id": validated_data["provider_id"],
             "description": validated_data.get("description", ""),
             "status": "pending",
@@ -188,6 +189,23 @@ class ServiceRequestUpdate(APIView):
         }
         MONGO_DB.notifications.insert_one(notification)
         return Response({"message": f"Service request {action}ed."}, status=status.HTTP_200_OK)
+    
+class ProviderRequestView(APIView):
+    permission_classes = [IsProvider]
+    
+    def get (self, request):
+        #Get the provider's id from the authenticated user
+        provider_id = request.user.get("user_id")
+        if not provider_id:
+            return Response({"error": "Provider ID not found in token."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        #query service_requests where provider_id matches with provider's id
+        requests = list(MONGO_DB.service_requests.find({"provider_id": provider_id}))
+        
+        #convert ObjectID to string for each request
+        for req in requests:
+            req["_id"]= str(req["_id"])
+        return Response(requests, status=status.HTTP_200_OK)
 
 
 class BillGeneration(APIView):
@@ -359,3 +377,4 @@ class PasswordResetConfirmView(APIView):
             return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
         else:
             return Response({"error": "Failed to reset password."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        

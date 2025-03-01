@@ -10,6 +10,9 @@ import BillGeneration from './components/bills/BillGeneration';
 import ServicesPage from './components/Servicepage';
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
+import ProviderRequests  from './components/providers/ProviderRequest';
+import ProviderDashboard from './components/providers/ProviderDashboard';
+import ProviderRoute from './components/providers/ProviderRoute';
 import './App.css';
 
 function App() {
@@ -28,6 +31,11 @@ function App() {
         <Route path="/request-service" element={<ServiceRequestCreate />} />
         <Route path="/generate-bill" element={<BillGeneration />} />
         <Route path="/services" element={<ServicesPage />}/>
+        <Route path="/provider-requests" element={<ProviderRequests />} />
+        <Route element={<ProviderRoute />}>
+          <Route path="/provider-dashboard" element={<ProviderDashboard />} />
+        </Route>
+        
 
         {/* Default redirect to Homepage */}
         <Route path="/" element={<HomePage />} />
