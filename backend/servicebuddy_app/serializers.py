@@ -35,5 +35,7 @@ class AddServiceSerializer(serializers.Serializer):
 class ServiceRequestSerializer(serializers.Serializer):
     provider_id = serializers.CharField()
     description = serializers.CharField(allow_blank=True, required=False)
-    appointment_date = serializers.DateField(required=False, allow_null=True)
-    appointment_time = serializers.TimeField(required=False, allow_null=True)
+    appointment_date = serializers.DateField(required=True, allow_null=True)
+    appointment_time = serializers.TimeField(required=True, allow_null=True)
+    location = serializers.CharField(required = True)
+    payment_method = serializers.ChoiceField(choices=['Cash', 'Online'], required = True)

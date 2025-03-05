@@ -10,6 +10,7 @@ def generate_tokens(user):
     """
     payload = {
         "user_id": str(user["_id"]),
+        "name": user["name"],
         "email": user["email"],
         "user_type": user["user_type"],
         "exp": datetime.utcnow() + timedelta(minutes=30)
@@ -18,6 +19,7 @@ def generate_tokens(user):
 
     refresh_payload = {
         "user_id": str(user["_id"]),
+        "name": user["name"],
         "email": user["email"],
         "user_type": user["user_type"],
         "exp": datetime.utcnow() + timedelta(days=7)

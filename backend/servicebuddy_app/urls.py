@@ -13,4 +13,7 @@ urlpatterns = [
     path('password-reset/', RequestPasswordResetView.as_view(), name='password_reset'),
     path('password-reset-confirm/', PasswordResetConfirmView.as_view(),name='password_reset_confirm'),
     path('provider-requests/', ProviderRequestView.as_view(), name = 'provider-requests'),
+    path('admin/providers/', AdminProviderView.as_view(), name='admin-providers'),
+    path('admin/providers/<str:provider_id>', AdminProviderView.as_view(), name='admin_update_provider'),
+    path('admin/requestview/', AdminRequestsView.as_view(), name='admin_requestsView')
 ]

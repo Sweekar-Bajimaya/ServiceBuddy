@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 import jwt
 from datetime import datetime, timedelta
 from django.conf import settings
-from .permissions import IsProvider, IsUser  # Import your custom permissions
+from .permissions import IsProvider, IsUser, IsAdmin  # Import your custom permissions
 from django.core.mail import send_mail
 
 class RegisterView(APIView):
@@ -136,15 +136,25 @@ class ServiceRequestCreate(APIView):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
         
+        # Convert date and time to strings if they exist
+        appointment_date = validated_data.get("appointment_date")
+        appointment_time = validated_data.get("appointment_time")
+        if appointment_date:
+            appointment_date = appointment_date.isoformat()  # e.g., "2025-03-05"
+        if appointment_time:
+            appointment_time = appointment_time.isoformat()  # e.g., "14:00:00"
+        
         # Prepare the service request data
         service_request = {
             "user_id": request.user["user_id"],
-            # "username": request.user["name"],
+            "user_name": request.user["name"],
             "provider_id": validated_data["provider_id"],
             "description": validated_data.get("description", ""),
+            "location": validated_data["location"],
+            "appointment_date": appointment_date,  
+            "appointment_time": appointment_time,  
+            "payment_method": validated_data.get("payment_method"),
             "status": "pending",
-            "appointment_date": validated_data.get("appointment_date"),  # Can be None if not provided
-            "appointment_time": validated_data.get("appointment_time"),  # Can be None if not provided
             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
         }
         result = MONGO_DB.service_requests.insert_one(service_request)
@@ -206,6 +216,56 @@ class ProviderRequestView(APIView):
         for req in requests:
             req["_id"]= str(req["_id"])
         return Response(requests, status=status.HTTP_200_OK)
+    
+class AdminProviderView(APIView):
+    permission_classes = [IsAdmin];
+    
+    def post(self, request):
+        data = request.data
+        #Validate Data fields 
+        for field in ["name", "email", "password", "location", "services_offered"]:
+            if field not in data:
+                return Response({"error": f"{field} is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        #Force user_type as provider and mark as handpicked
+        provider = {
+            "name": data["name"],
+            "email": data["email"],
+            "password": data["password"],
+            "user_type": "provider",
+            "location": data["location"],
+            "services_offered": data["services_offered"],
+            "handpicked": True,
+        }
+        result = MONGO_DB.users.insert_one(provider)
+        provider["_id"] = str(result.inserted_id)
+        return Response({"message": "Provider Added Successfully!", "provider": provider}, status=status.HTTP_201_CREATED)
+    
+    def put(self, request, provider_id):
+        """
+        Update an Existing Provider.
+        """
+        data = request.data
+        update_fields = {key: data[key] for key in data}
+        result = MONGO_DB.users.update_one({"_id": ObjectId(provider_id)}, {"$set": update_fields})
+        
+        if result.modified_count:
+            return Response({"message": "Provider updated Successfully"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"message": "Provider not found! or no changes were made!"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminRequestsView(APIView):
+    permission_classes = [IsAdmin]
+    
+    def get(self, request):
+        request_cursor = MONGO_DB.service_requests.find({})
+        request_list = []
+        for req in request_cursor:
+            req["_id"] = str(req["_id"])
+            request_list.append(req)
+        return Response(request_list, status=status.HTTP_200_OK)
+        
 
 
 class BillGeneration(APIView):
