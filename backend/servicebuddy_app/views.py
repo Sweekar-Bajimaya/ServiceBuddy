@@ -30,17 +30,13 @@ class RegisterView(APIView):
 
         # Create user data dictionary
         user = {
-            "user_type": data["user_type"],
             "name": data["name"],
             "email": data["email"],
             "password": make_password(data["password"]),  # Hash the password
             "location": data["location"],
+            "phone_num":data["phone_num"],
             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
         }
-
-        # Only add services_offered if user_type is 'provider'
-        if data["user_type"] == "provider":
-            user["services_offered"] = data["services_offered"]
 
         # Insert user into MongoDB
         result = MONGO_DB.users.insert_one(user)

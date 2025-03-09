@@ -1,30 +1,19 @@
 from rest_framework import serializers
+from django.core.validators import RegexValidator
+
+phone_regex = RegexValidator(
+    regex=r'^\+?1?\d{9,15}$',
+    message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed."
+)
 
 class RegisterSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=100)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-    user_type = serializers.ChoiceField(choices=['user', 'provider'])
-    services_offered = serializers.ListField(
-        child=serializers.ChoiceField(choices=[
-            'Electrician', 'Mechanic', 'Plumber', 'Technician', 'Cleaner'
-        ]),
-        required=False  # Make it optional by default
-    )
     location = serializers.CharField(max_length=100)
+    phone_num = serializers.CharField(validators=[phone_regex], required = True)
+
     
-    def validate(self, data):
-        """ Ensure services_offered is required only for providers """
-        if data.get("user_type") == "provider" and "services_offered" not in data:
-            raise serializers.ValidationError({"services_offered": "This field is required for service providers."})
-        
-        if data.get("user_type") == "user" and "services_offered" in data:
-            raise serializers.ValidationError({"services_offered": "This field is not allowed for regular users."})
-        
-        
-        return data 
-
-
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
