@@ -13,6 +13,7 @@ import ResetPassword from './components/auth/ResetPassword';
 import ProviderRequests  from './components/providers/ProviderRequest';
 import ProviderDashboard from './components/providers/ProviderDashboard';
 import ProviderRoute from './components/providers/ProviderRoute';
+import AdminDashboard from './components/Admin/AdminDashboard';
 import './App.css';
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
         <Route element={<ProviderRoute />}>
           <Route path="/provider-dashboard" element={<ProviderDashboard />} />
         </Route>
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
         
 
         {/* Default redirect to Homepage */}

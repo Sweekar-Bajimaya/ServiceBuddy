@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { Box, Typography, List, ListItem, ListItemButton, ListItemIcon, ListItemText, IconButton } from "@mui/material";
+import { Box, Typography, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
   ListAlt as ServiceRequestsIcon,
@@ -9,20 +9,19 @@ import {
   Person as ProfileIcon,
   Logout as LogoutIcon,
   Construction as ConstructionIcon,
+  PersonAdd as PersonAddIcon,
 } from "@mui/icons-material";
-
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 
 const Sidebar = () => {
-  const {user, logout} = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const handleLogout = () =>{
+  const handleLogout = () => {
     logout();
-    navigate('/login');
-  }
-
+    navigate("/login");
+  };
 
   return (
     <Box sx={{ textAlign: "left" }}>
@@ -30,50 +29,81 @@ const Sidebar = () => {
         ServiceBuddy
       </Typography>
       <List>
-        <ListItem disablePadding>
-          <ListItemButton component = {Link} to ="/provider-dashboard">
-            <ListItemIcon>
-              <DashboardIcon />
-            </ListItemIcon>
-            <ListItemText primary="Dashboard" />
-          </ListItemButton>
-        </ListItem>
 
-        <ListItem disablePadding>
-          <ListItemButton component= {Link} to="/provider-requests">
-            <ListItemIcon>
-              <ServiceRequestsIcon />
-            </ListItemIcon>
-            <ListItemText primary="Service Requests" />
-          </ListItemButton>
-        </ListItem>
+        {/* Only visible for Providers */}
+        {user?.user_type === "provider" && (
+          <>
+            {/* Common Menu Item */}
+            <ListItem disablePadding>
+              <ListItemButton component={Link} to="/provider-dashboard">
+                <ListItemIcon>
+                  <DashboardIcon />
+                </ListItemIcon>
+                <ListItemText primary="Dashboard" />
+              </ListItemButton>
+            </ListItem>
 
-        <ListItem disablePadding>
-          <ListItemButton>
-            <ListItemIcon>
-              <AppointmentIcon />
-            </ListItemIcon>
-            <ListItemText primary="Appointment" />
-          </ListItemButton>
-        </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton component={Link} to="/provider-requests">
+                <ListItemIcon>
+                  <ServiceRequestsIcon />
+                </ListItemIcon>
+                <ListItemText primary="Service Requests" />
+              </ListItemButton>
+            </ListItem>
 
-        <ListItem disablePadding>
-          <ListItemButton>
-            <ListItemIcon>
-              <HistoryIcon />
-            </ListItemIcon>
-            <ListItemText primary="History" />
-          </ListItemButton>
-        </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton>
+                <ListItemIcon>
+                  <AppointmentIcon />
+                </ListItemIcon>
+                <ListItemText primary="Appointment" />
+              </ListItemButton>
+            </ListItem>
 
-        <ListItem disablePadding>
-          <ListItemButton>
-            <ListItemIcon>
-              <MessageIcon />
-            </ListItemIcon>
-            <ListItemText primary="Message" />
-          </ListItemButton>
-        </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton>
+                <ListItemIcon>
+                  <HistoryIcon />
+                </ListItemIcon>
+                <ListItemText primary="History" />
+              </ListItemButton>
+            </ListItem>
+
+            <ListItem disablePadding>
+              <ListItemButton>
+                <ListItemIcon>
+                  <MessageIcon />
+                </ListItemIcon>
+                <ListItemText primary="Message" />
+              </ListItemButton>
+            </ListItem>
+          </>
+        )}
+
+        {/* Only visible for Admin */}
+        {user?.user_type === "admin" && (
+          <>
+            <ListItem disablePadding>
+              <ListItemButton component={Link} to="/admin-dashboard">
+                <ListItemIcon>
+                  <ConstructionIcon />
+                </ListItemIcon>
+                <ListItemText primary="Admin Dashboard" />
+              </ListItemButton>
+            </ListItem>
+
+            <ListItem disablePadding>
+              <ListItemButton component={Link} to="/add-provider">
+                <ListItemIcon>
+                  <PersonAddIcon />
+                </ListItemIcon>
+                <ListItemText primary="Add Providers" />
+              </ListItemButton>
+            </ListItem>
+          </>
+
+        )}
 
         <ListItem disablePadding>
           <ListItemButton>
