@@ -8,7 +8,10 @@ import {
   Card,
   CardContent,
   Grid,
+  ToggleButtonGroup,
+  ToggleButton,
 } from "@mui/material";
+import { Person, Build } from "@mui/icons-material"; // Icons for User & Provider
 import { loginUser } from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
@@ -16,25 +19,48 @@ import { Link, useNavigate } from "react-router-dom";
 const Login = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    user_type: "user",
+  });
   const [error, setError] = useState("");
+
+  const isAdmin = form.email === "admin@servicebuddy.com"; // ✅ Check if logging in as Admin
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleUserTypeChange = (event, newUserType) => {
+    if (newUserType !== null && !isAdmin) {
+      setForm({ ...form, user_type: newUserType });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    let loginData = {
+      email: form.email,
+      password: form.password,
+    };
+
+    // ✅ Only include user_type if not Admin
+    if (!isAdmin) {
+      loginData.user_type = form.user_type;
+    }
+
     try {
-      const res = await loginUser(form);
-      // res.data = { access, refresh, user }
+      const res = await loginUser(loginData);
       login(res.data.user, res.data.access);
-      
-      // Check user_type and redirect
-      if (res.data.user.user_type === 'provider') {
-        navigate('/provider-dashboard');
+
+      if (isAdmin) {
+        navigate("/admin-dashboard"); // Redirect to Admin Dashboard
+      } else if (res.data.user.user_type === "provider") {
+        navigate("/provider-dashboard");
       } else {
-        navigate('/');
+        navigate("/"); // Redirect to user home/dashboard
       }
     } catch (err) {
       setError("Invalid credentials or server error");
@@ -69,7 +95,7 @@ const Login = () => {
           >
             <Box sx={{ height: "100%", width: "100%" }}>
               <img
-                src="https://img.freepik.com/free-vector/privacy-policy-concept-illustration_114360-7853.jpg?t=st=1739973600~exp=1739977200~hmac=25f0d6bf7f6249492d4beeb26f743d194107fa3e5bc1d0c7f49354f0695b97dc&w=740"
+                src="https://img.freepik.com/free-vector/privacy-policy-concept-illustration_114360-7853.jpg"
                 alt="Side illustration"
                 style={{
                   width: "100%",
@@ -86,6 +112,36 @@ const Login = () => {
               <Typography variant="h5" align="center" gutterBottom>
                 Login
               </Typography>
+
+              {/* User Type Selection - Only show for non-admin users */}
+              {!isAdmin && (
+                <Box
+                  display="flex"
+                  justifyContent="center"
+                  mb={2}
+                  sx={{ gap: 2 }}
+                >
+                  <ToggleButtonGroup
+                    value={form.user_type}
+                    exclusive
+                    onChange={handleUserTypeChange}
+                    aria-label="user type selection"
+                    sx={{ display: "flex", gap: 2 }}
+                  >
+                    <ToggleButton value="user" aria-label="User" sx={{ px: 3 }}>
+                      <Person sx={{ mr: 1 }} /> User
+                    </ToggleButton>
+                    <ToggleButton
+                      value="provider"
+                      aria-label="Service Provider"
+                      sx={{ px: 3 }}
+                    >
+                      <Build sx={{ mr: 1 }} /> Service Provider
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
+              )}
+
               <Box
                 component="form"
                 onSubmit={handleSubmit}
@@ -117,6 +173,7 @@ const Login = () => {
                 </Button>
               </Box>
 
+              {/* Links */}
               <Box
                 mt={2}
                 display="flex"
@@ -126,9 +183,12 @@ const Login = () => {
                 <Link component={Link} to="/reset-password" underline="hover">
                   Forgot password?
                 </Link>
-                <Link component={Link} to="/register" underline="hover">
-                  Don't have an account? Register
-                </Link>
+                {/* Only show the registration link if the user type is "user" */}
+                {!isAdmin && form.user_type === "user" && (
+                  <Link component={Link} to="/register" underline="hover">
+                    Don't have an account? Register
+                  </Link>
+                )}
               </Box>
             </CardContent>
           </Grid>
@@ -137,4 +197,5 @@ const Login = () => {
     </Container>
   );
 };
+
 export default Login;

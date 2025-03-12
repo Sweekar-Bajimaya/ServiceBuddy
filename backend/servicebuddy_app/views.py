@@ -30,6 +30,7 @@ class RegisterView(APIView):
 
         # Create user data dictionary
         user = {
+            "user_type": data["user_type"],
             "name": data["name"],
             "email": data["email"],
             "password": make_password(data["password"]),  # Hash the password
@@ -53,11 +54,21 @@ class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        
         data = serializer.validated_data
+        email = data["email"]
+        password = data["password"]
+        user_type = data.get("user_type")  # ✅ Use `.get()` to avoid KeyError
 
-        user = MONGO_DB.users.find_one({"email": data["email"]})
-        if not user or not check_password(data["password"], user["password"]):
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+        # ✅ Check if user is admin (skip user_type check)
+        if email == "admin@servicebuddy.com":
+            user = MONGO_DB.users.find_one({"email": email})
+        else:
+            user = MONGO_DB.users.find_one({"email": email, "user_type": user_type})
+
+        # ✅ Validate user existence and password
+        if not user or not check_password(password, user["password"]):
+            return Response({"error": "Invalid credentials or Incorrect User type"}, status=status.HTTP_400_BAD_REQUEST)
 
         access, refresh = generate_tokens(user)
         return Response({
@@ -66,12 +77,11 @@ class LoginView(APIView):
             "user": {
                 "user_id": str(user["_id"]),
                 "email": user["email"],
-                "user_type": user["user_type"],
+                "user_type": user.get("user_type", "admin"),  # Default to "admin" if missing
                 "name": user["name"]
             }
         }, status=status.HTTP_200_OK)
-               
-
+        
 class AddServiceView(APIView):
     # Only providers are allowed to add services to their list.
     permission_classes = [IsProvider]

@@ -12,11 +12,31 @@ class RegisterSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     location = serializers.CharField(max_length=100)
     phone_num = serializers.CharField(validators=[phone_regex], required = True)
+    
+    def validate(self, data):
+        # Align default user type as User 
+        data['user_type'] = 'user'
+        return data
 
     
+
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+    user_type = serializers.ChoiceField(
+        choices=['user', 'provider'],
+        required=False  # ✅ Make `user_type` optional
+    )
+
+    def validate(self, data):
+        email = data.get("email")
+        user_type = data.get("user_type")
+
+        # ✅ If user is NOT an admin, `user_type` is required
+        if email != "admin@servicebuddy.com" and not user_type:
+            raise serializers.ValidationError({"user_type": "This field is required for non-admin users."})
+
+        return data
     
 class AddServiceSerializer(serializers.Serializer):
     service = serializers.CharField(max_length=100)
