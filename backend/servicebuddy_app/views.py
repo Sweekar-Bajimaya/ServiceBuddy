@@ -58,15 +58,17 @@ class LoginView(APIView):
         data = serializer.validated_data
         email = data["email"]
         password = data["password"]
-        user_type = data.get("user_type")  # ✅ Use `.get()` to avoid KeyError
+        user_type = data.get("user_type")  # Use `.get()` to avoid KeyError
 
-        # ✅ Check if user is admin (skip user_type check)
+        # Check if user is admin (skip user_type check)
         if email == "admin@servicebuddy.com":
             user = MONGO_DB.users.find_one({"email": email})
+        elif user_type == "provider":
+            user = MONGO_DB.providers.find_one({"email": email})
         else:
             user = MONGO_DB.users.find_one({"email": email, "user_type": user_type})
 
-        # ✅ Validate user existence and password
+        # Validate user existence and password
         if not user or not check_password(password, user["password"]):
             return Response({"error": "Invalid credentials or Incorrect User type"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -82,35 +84,31 @@ class LoginView(APIView):
             }
         }, status=status.HTTP_200_OK)
         
-class AddServiceView(APIView):
-    # Only providers are allowed to add services to their list.
-    permission_classes = [IsProvider]
+class AddServiceProviderView(APIView):
+    """
+    Allows Admin to register new service providers.
+    """
+    permission_classes = [IsAdmin]  # Ensure only admin can register providers
 
     def post(self, request):
-        # Expecting a JSON payload with a "service" field.
-        new_service = request.data.get('service')
-        if not new_service:
-            return Response({"error": "Service field is required."},
-                            status=status.HTTP_400_BAD_REQUEST)
+        data = request.data.copy()  # Ensure data is mutable
+        data["user_type"] = "provider"  # Explicitly set user type as 'provider'
 
-        # Get provider id from the token (this assumes your JWT authentication sets request.user)
-        provider_id = request.user.get("user_id")
-        if not provider_id:
-            return Response({"error": "Provider identification missing."},
-                            status=status.HTTP_400_BAD_REQUEST)
+        print("DEBUG: Data before serializer:", data)  # Debugging
 
-        # Use $addToSet to add the new service (ensures no duplicates)
-        result = MONGO_DB.service_providers.update_one(
-            {"_id": ObjectId(provider_id)},
-            {"$addToSet": {"services_offered": new_service}}
-        )
+        serializer = RegisterSerializer(data=data)
+        if serializer.is_valid():
+            print("DEBUG: Validated data:", serializer.validated_data)  # Debugging
 
-        if result.modified_count:
-            return Response({"message": "Service added successfully."},
-                            status=status.HTTP_200_OK)
-        else:
-            return Response({"message": "Service already exists or no changes made."},
-                            status=status.HTTP_200_OK)
+            provider = serializer.create(serializer.validated_data)  # Save provider
+
+            return Response(
+                {"message": "Service provider added successfully."},
+                status=status.HTTP_201_CREATED
+            )
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class ServiceProviderList(APIView):
     permission_classes = [IsUser]  # Ensure only authenticated users can access

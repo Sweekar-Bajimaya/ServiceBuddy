@@ -42,3 +42,10 @@ export const forgotPassword = (data) => API.post('/password-reset/', data);
 export const resetPassword = (data) => API.post('/password-reset-confirm/', data);
 
 export const getProviderRequests = () => API.get('/provider-requests/')
+
+export const addServiceProvider = async (providerData) => {
+  const response = await API.post('/add-provider/', providerData, {
+    headers: { "Content-Type": "application/json" },
+  });
+  return response.data;
+};

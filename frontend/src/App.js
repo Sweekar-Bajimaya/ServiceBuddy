@@ -10,10 +10,11 @@ import BillGeneration from './components/bills/BillGeneration';
 import ServicesPage from './components/Servicepage';
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
-import ProviderRequests  from './components/providers/ProviderRequest';
+import ProviderRequests from './components/providers/ProviderRequest';
 import ProviderDashboard from './components/providers/ProviderDashboard';
 import ProviderRoute from './components/providers/ProviderRoute';
 import AdminDashboard from './components/Admin/AdminDashboard';
+import AddProvider from './components/Admin/AddProvider';  // ✅ Fixed typo (was "AddProvder")
 import './App.css';
 
 function App() {
@@ -26,20 +27,24 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Protected Routes (example approach) */}
+        {/* Protected Routes */}
         <Route path="/providers" element={<ProviderList />} />
         <Route path="/my-bookings" element={<MyBookings />} />
         <Route path="/request-service" element={<ServiceRequestCreate />} />
         <Route path="/generate-bill" element={<BillGeneration />} />
-        <Route path="/services" element={<ServicesPage />}/>
+        <Route path="/services" element={<ServicesPage />} />
         <Route path="/provider-requests" element={<ProviderRequests />} />
+
+        {/* Provider Protected Route */}
         <Route element={<ProviderRoute />}>
           <Route path="/provider-dashboard" element={<ProviderDashboard />} />
         </Route>
-        <Route path="/admin-dashboard" element={<AdminDashboard />} />
-        
 
-        {/* Default redirect to Homepage */}
+        {/* Admin Routes */}
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        <Route path="/add-provider" element={<AddProvider />} />
+
+        {/* Default Route to Homepage */}
         <Route path="/" element={<HomePage />} />
       </Routes>
     </BrowserRouter>

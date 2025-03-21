@@ -8,7 +8,6 @@ import {
   Message as MessageIcon,
   Person as ProfileIcon,
   Logout as LogoutIcon,
-  Construction as ConstructionIcon,
   PersonAdd as PersonAddIcon,
 } from "@mui/icons-material";
 import { useNavigate, Link } from "react-router-dom";
@@ -87,7 +86,7 @@ const Sidebar = () => {
             <ListItem disablePadding>
               <ListItemButton component={Link} to="/admin-dashboard">
                 <ListItemIcon>
-                  <ConstructionIcon />
+                  <DashboardIcon />
                 </ListItemIcon>
                 <ListItemText primary="Admin Dashboard" />
               </ListItemButton>
@@ -101,8 +100,16 @@ const Sidebar = () => {
                 <ListItemText primary="Add Providers" />
               </ListItemButton>
             </ListItem>
-          </>
 
+            <ListItem disablePadding>
+              <ListItemButton component={Link} to="/service-requests">
+                <ListItemIcon>
+                  <ServiceRequestsIcon />
+                </ListItemIcon>
+                <ListItemText primary="Service Requests" />
+              </ListItemButton>
+            </ListItem>
+          </>
         )}
 
         <ListItem disablePadding>
