@@ -47,42 +47,61 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
-    # Allow unauthenticated access
     authentication_classes = []
     permission_classes = []
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
+
+        if not serializer.is_valid():
+            return Response({"error": "Invalid data", "details": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
         data = serializer.validated_data
         email = data["email"]
         password = data["password"]
-        user_type = data.get("user_type")  # Use `.get()` to avoid KeyError
+        user_type = data.get("user_type", "user")  # Default to user if not provided
 
-        # Check if user is admin (skip user_type check)
+        # Debugging: Print request data
+        print(f"DEBUG: Login Attempt -> Email: {email}, UserType: {user_type}")
+
+        # Admin login
         if email == "admin@servicebuddy.com":
             user = MONGO_DB.users.find_one({"email": email})
+        # Provider login
         elif user_type == "provider":
             user = MONGO_DB.providers.find_one({"email": email})
+        # Normal user login
         else:
             user = MONGO_DB.users.find_one({"email": email, "user_type": user_type})
 
-        # Validate user existence and password
-        if not user or not check_password(password, user["password"]):
-            return Response({"error": "Invalid credentials or Incorrect User type"}, status=status.HTTP_400_BAD_REQUEST)
+        # Check if user exists
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
+        # Check password validity
+        if not check_password(password, user["password"]):
+            return Response({"error": "Incorrect password"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate authentication tokens
         access, refresh = generate_tokens(user)
+
+        # Redirect based on user type
+        redirect_url = "/homepage"
+        if user_type == "provider":
+            redirect_url = "/provider-dashboard"
+
         return Response({
             "access": access,
             "refresh": refresh,
             "user": {
                 "user_id": str(user["_id"]),
                 "email": user["email"],
-                "user_type": user.get("user_type", "admin"),  # Default to "admin" if missing
-                "name": user["name"]
-            }
+                "user_type": user["user_type"],
+                "name": user["name"],
+            },
+            "redirect_url": redirect_url  # Send redirection URL to frontend
         }, status=status.HTTP_200_OK)
+
         
 class AddServiceProviderView(APIView):
     """
