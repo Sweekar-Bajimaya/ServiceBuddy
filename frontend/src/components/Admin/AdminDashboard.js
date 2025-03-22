@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import {
   AppBar,
   Toolbar,
@@ -19,6 +19,7 @@ import {
 } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
 import Sidebar from "../common/Sidebar";
+import { AuthContext } from "../../context/AuthContext";
 
 const drawerWidth = 240;
 
@@ -30,6 +31,8 @@ const AdminDashboard = () => {
     setMobileOpen(!mobileOpen);
   };
 
+  const { user } = useContext(AuthContext);
+
   // Example data for the table
   const ticketsData = [
     { reference: "2025001", date: "January 1, 2025", lastUpdated: "January 3, 2025", subject: "Leaking Pipe in Kitchen", status: "Resolved", priority: "High" },
@@ -40,16 +43,45 @@ const AdminDashboard = () => {
   return (
     <Box sx={{ display: "flex" }}>
       {/* Topbar / AppBar */}
-      <AppBar position="fixed" sx={{ width: { sm: `calc(100% - ${drawerWidth}px)` }, ml: { sm: `${drawerWidth}px` } }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          ml: { sm: `${drawerWidth}px` },
+        }}
+      >
         <Toolbar>
-          <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2, display: { sm: "none" } }}>
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 2, display: { sm: "none" } }}
+          >
             <MenuIcon />
           </IconButton>
+
+          {/* Left side: Admin Dashboard title */}
           <Typography variant="h6" noWrap component="div">
             Admin Dashboard
           </Typography>
+
+          {/* Right side: user name, but not flush-right */}
+          <Box
+            sx={{
+              ml: "auto",           // push this Box to the right
+              mr: 4,                // add space from the right edge
+              display: "flex",
+              alignItems: "center",
+              gap: 2,               // spacing between items in the box
+            }}
+          >
+            <Typography variant="h6" sx={{ color: "inherit" }}>
+              Mr.{user.name}
+            </Typography>
+          </Box>
         </Toolbar>
       </AppBar>
+
 
       {/* Sidebar Drawer */}
       <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }} aria-label="sidebar">
