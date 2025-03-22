@@ -14,6 +14,7 @@ class RegisterSerializer(serializers.Serializer):
     location = serializers.CharField(max_length=100)
     phone_num = serializers.CharField(validators=[phone_regex], required=True)
     user_type = serializers.CharField(default="user")  # Defaults to "user" if not provided
+    services_offered = serializers.ListField(child=serializers.CharField(max_length=100), required=False)  # Ensure services_offered is properly handled
 
     def validate(self, data):
         """
