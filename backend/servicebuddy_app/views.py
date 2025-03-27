@@ -102,7 +102,7 @@ class LoginView(APIView):
             "redirect_url": redirect_url  # Send redirection URL to frontend
         }, status=status.HTTP_200_OK)
 
-        
+# For Admin       
 class AddServiceProviderView(APIView):
     """
     Allows Admin to register new service providers.
@@ -125,8 +125,40 @@ class AddServiceProviderView(APIView):
                 {"message": "Service provider added successfully."},
                 status=status.HTTP_201_CREATED
             )
-
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class AdminProvidersListView(APIView):
+    """
+    API endpoint for admin to view all service providers.
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        try:
+            # Verify if querying the correct collection
+            # Providers should be in users collection with role='provider'
+            providers_cursor = MONGO_DB.providers.find(
+                {"role": "provider"}, 
+                {"password": 0}
+            )
+            
+            providers = []
+            for provider in providers_cursor:
+                # Convert ObjectId and datetime objects
+                provider["_id"] = str(provider["_id"])
+                if 'date_joined' in provider:
+                    provider['date_joined'] = provider['date_joined'].isoformat()
+                providers.append(provider)
+                
+            return Response(providers, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+        
 
 
 class ServiceProviderList(APIView):

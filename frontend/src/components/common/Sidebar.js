@@ -9,9 +9,12 @@ import {
   Person as ProfileIcon,
   Logout as LogoutIcon,
   PersonAdd as PersonAddIcon,
+  
+  
 } from "@mui/icons-material";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 
 const Sidebar = () => {
   const { user, logout } = useContext(AuthContext);
@@ -98,6 +101,15 @@ const Sidebar = () => {
                   <PersonAddIcon />
                 </ListItemIcon>
                 <ListItemText primary="Add Providers" />
+              </ListItemButton>
+            </ListItem>
+
+            <ListItem disablePadding>
+              <ListItemButton component={Link} to="/providerslist">
+                <ListItemIcon>
+                  <PeopleAltIcon />
+                </ListItemIcon>
+                <ListItemText primary="Service Providers" />
               </ListItemButton>
             </ListItem>
 

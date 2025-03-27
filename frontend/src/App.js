@@ -16,6 +16,7 @@ import ProviderRoute from './components/providers/ProviderRoute';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import AddProvider from './components/Admin/AddProvider';  // ✅ Fixed typo (was "AddProvder")
 import './App.css';
+import AdminProvidersList from './components/Admin/AdminProviderList';
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
         {/* Admin Routes */}
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/add-provider" element={<AddProvider />} />
+        <Route path="/providerslist" element={<AdminProvidersList />}/>
 
         {/* Default Route to Homepage */}
         <Route path="/" element={<HomePage />} />

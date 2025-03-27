@@ -24,6 +24,19 @@ export const refreshAccessToken = (data) => API.post('/token/refresh/', data); /
 // Providers endpoints
 export const getProviders = (params) => API.get('/service-providers/', { params });
 
+// **Admin Providers Endpoint**
+export const getAdminProviders = async () => {
+  try {
+    return await axios.get('/api/admin/providers/', {
+      headers: {
+        Authorization: `JWT ${localStorage.getItem('access_token')}`
+      }
+    });
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message);
+  }
+};
+
 // Service requests endpoints
 export const createServiceRequest = (data) => API.post('/service-requests/', data);
 export const updateServiceRequest = (requestId, data) => API.patch(`/service-requests/${requestId}/`, data);
@@ -41,7 +54,7 @@ export const forgotPassword = (data) => API.post('/password-reset/', data);
 
 export const resetPassword = (data) => API.post('/password-reset-confirm/', data);
 
-export const getProviderRequests = () => API.get('/provider-requests/')
+export const getProviderRequests = () => API.get('/provider-requests/');
 
 export const addServiceProvider = async (providerData) => {
   const response = await API.post('/add-provider/', providerData, {
