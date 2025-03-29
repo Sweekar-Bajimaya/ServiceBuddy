@@ -138,7 +138,7 @@ class AdminProvidersListView(APIView):
             # Verify if querying the correct collection
             # Providers should be in users collection with role='provider'
             providers_cursor = MONGO_DB.providers.find(
-                {"role": "provider"}, 
+                {"user_type": "provider"}, 
                 {"password": 0}
             )
             

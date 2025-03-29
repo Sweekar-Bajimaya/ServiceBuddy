@@ -9,14 +9,15 @@ const AdminProviderList = () => {
   useEffect(() => {
     const fetchProviders = async () => {
       try {
-        const data = await getAdminProviders(); // Call the API function
-        setProviders(data); // Set the fetched data in the state
+        const data = await getAdminProviders();
+        console.log("Providers Data Received:", data); // Debugging step
+        setProviders(data);
       } catch (error) {
         setError("Error fetching providers. Please try again later.");
         console.error("Error fetching providers:", error);
       }
     };
-    
+  
     fetchProviders();
   }, []);
 

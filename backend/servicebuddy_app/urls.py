@@ -16,5 +16,5 @@ urlpatterns = [
     path('admin/providers/', AdminProviderView.as_view(), name='admin-providers'),
     path('admin/providers/<str:provider_id>', AdminProviderView.as_view(), name='admin_update_provider'),
     path('admin/requestview/', AdminRequestsView.as_view(), name='admin_requestsView'),
-    path ("admin/providers/", AdminProvidersListView.as_view(), name = "admin_providers"),
+    path ('admin/providerslist/', AdminProvidersListView.as_view(), name = 'admin_providers' ),
 ]
