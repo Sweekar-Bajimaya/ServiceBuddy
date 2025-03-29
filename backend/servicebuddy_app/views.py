@@ -158,7 +158,27 @@ class AdminProvidersListView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
             
-        
+
+class DeleteProviderView(APIView):
+    permission_classes = [IsAdmin]
+
+    def delete(self, request, provider_id):  # FIXED: "delete" instead of "DELETE"
+        try:
+            # Ensure the provider exists
+            if not ObjectId.is_valid(provider_id):  # Validate ObjectId
+                return Response({"error": "Invalid provider ID."}, status=status.HTTP_400_BAD_REQUEST)
+
+            provider = MONGO_DB.providers.find_one({"_id": ObjectId(provider_id)})
+            if not provider:
+                return Response({"error": "Provider not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            # Delete the provider
+            MONGO_DB.providers.delete_one({"_id": ObjectId(provider_id)})
+
+            return Response({"message": "Provider deleted successfully."}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ServiceProviderList(APIView):
@@ -175,13 +195,13 @@ class ServiceProviderList(APIView):
         if service_type:
             query["services_offered"] = {"$in": [service_type]}  # Check if service exists in the array
 
-        providers = list(MONGO_DB.users.find(query))  # Query from users collection, not service_providers
+        service_providers = list(MONGO_DB.providers.find(query))  # Query from users collection, not service_providers
         
         # Convert ObjectIds to strings
-        for provider in providers:
+        for provider in service_providers:
             provider["_id"] = str(provider["_id"])
 
-        return Response(providers, status=status.HTTP_200_OK)
+        return Response(service_providers, status=status.HTTP_200_OK)
     
 
 class ServiceRequestCreate(APIView):

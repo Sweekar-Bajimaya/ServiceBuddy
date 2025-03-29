@@ -59,21 +59,18 @@ export const addServiceProvider = async (providerData) => {
   return response.data;
 };
 
-// export const getAdminProviders = async () => {
-//   try {
-//     return await axios.get('/api/admin/providerslist/', {
-//       headers: {
-//         Authorization: `Bearer ${localStorage.getItem('accessToken')}`
-//       }
-//     });
-//   } catch (error) {
-//     throw new Error(error.response?.data?.message || error.message);
-//   }
-// };
-
 export const getAdminProviders = async () => {
   try {
     const response = await API.get("/admin/providerslist/");
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message);
+  }
+};
+
+export const deleteProvider = async (id) => {
+  try {
+    const response = await API.delete(`/delete-provider/${id}/`);
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || error.message);

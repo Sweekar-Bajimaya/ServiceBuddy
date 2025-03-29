@@ -26,7 +26,10 @@ const ServicesPage = () => {
       name: 'Cleaner', 
       image: "https://img.freepik.com/free-photo/young-housewife-cleaning-with-rug-detergent-isolated_231208-10959.jpg" 
     },
-    // Add more services as needed
+    {
+      name: 'Mechanic',
+      image: "https://img.freepik.com/free-photo/muscular-car-service-worker-repairing-vehicle_146671-19605.jpg?t=st=1743257466~exp=1743261066~hmac=08ee31bbaadd0fb86221511ae81acfc3d37e7cee6454f597b63901bbc7073d82&w=1380"
+    }
   ];
 
   // State for selected service and fetched providers
