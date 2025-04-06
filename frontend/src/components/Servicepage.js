@@ -1,54 +1,72 @@
-import React, { useState } from 'react';
-import { 
-  Box, Grid, Card, CardContent, CardMedia, Typography, Button, 
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField 
-} from '@mui/material';
-import { getProviders, createServiceRequest } from '../services/api'; // Ensure createServiceRequest is defined in your API file
+import React, { useState } from "react";
+import {
+  Box,
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
+  Typography,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+} from "@mui/material";
+import { getProviders, createServiceRequest } from "../services/api";
 import Navbar from "./common/Navbar";
 import Footer from "./common/Footer";
+import { useToast } from "./common/ToastProvider";
 
 const ServicesPage = () => {
   // List of available services
   const services = [
-    { 
-      name: 'Plumber', 
-      image: "https://img.freepik.com/free-photo/technician-checking-heating-system-boiler-room_169016-53608.jpg" 
-    },
-    { 
-      name: 'Electrician', 
-      image: "https://img.freepik.com/free-photo/male-electrician-works-switchboard-with-electrical-connecting-cable_169016-15204.jpg" 
-    },
-    { 
-      name: 'IT Expert', 
-      image: "https://img.freepik.com/free-photo/businesman-working-computer_1098-21050.jpg" 
-    },
-    { 
-      name: 'Cleaner', 
-      image: "https://img.freepik.com/free-photo/young-housewife-cleaning-with-rug-detergent-isolated_231208-10959.jpg" 
+    {
+      name: "Plumber",
+      image:
+        "https://img.freepik.com/free-photo/technician-checking-heating-system-boiler-room_169016-53608.jpg",
     },
     {
-      name: 'Mechanic',
-      image: "https://img.freepik.com/free-photo/muscular-car-service-worker-repairing-vehicle_146671-19605.jpg?t=st=1743257466~exp=1743261066~hmac=08ee31bbaadd0fb86221511ae81acfc3d37e7cee6454f597b63901bbc7073d82&w=1380"
-    }
+      name: "Electrician",
+      image:
+        "https://img.freepik.com/free-photo/male-electrician-works-switchboard-with-electrical-connecting-cable_169016-15204.jpg",
+    },
+    {
+      name: "IT Expert",
+      image:
+        "https://img.freepik.com/free-photo/businesman-working-computer_1098-21050.jpg",
+    },
+    {
+      name: "Cleaner",
+      image:
+        "https://img.freepik.com/free-photo/young-housewife-cleaning-with-rug-detergent-isolated_231208-10959.jpg",
+    },
+    {
+      name: "Mechanic",
+      image:
+        "https://img.freepik.com/free-photo/muscular-car-service-worker-repairing-vehicle_146671-19605.jpg?t=st=1743257466~exp=1743261066~hmac=08ee31bbaadd0fb86221511ae81acfc3d37e7cee6454f597b63901bbc7073d82&w=1380",
+    },
   ];
 
   // State for selected service and fetched providers
   const [selectedService, setSelectedService] = useState(null);
   const [providers, setProviders] = useState([]);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+
+  const { showToast } = useToast();
 
   const handleSelectService = async (serviceName) => {
     setSelectedService(serviceName);
-    setProviders([]);  // Reset providers before fetching
-    setError('');
-    
+    setProviders([]); // Reset providers before fetching
+    setError("");
+
     try {
       // Call the backend to get providers who offer this service
       const res = await getProviders({ service_type: serviceName });
       setProviders(res.data);
     } catch (err) {
       console.error(err);
-      setError('Failed to load providers. Please try again.');
+      setError("Failed to load providers. Please try again.");
     }
   };
 
@@ -56,26 +74,23 @@ const ServicesPage = () => {
   const [openRequestDialog, setOpenRequestDialog] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [requestForm, setRequestForm] = useState({
-    description: '',
-    appointmentDate: '',
-    appointmentTime: '',
-    phone: ''
+    description: "",
+    appointmentDate: "",
+    appointmentTime: "",
+    location: "",
+    payment_method: "Cash", // <-- set default value
   });
-  const [requestError, setRequestError] = useState('');
-  const [requestSuccess, setRequestSuccess] = useState('');
 
   const handleOpenRequestDialog = (provider) => {
     setSelectedProvider(provider);
     setOpenRequestDialog(true);
-    // Reset form state
     setRequestForm({
-      description: '',
-      appointmentDate: '',
-      appointmentTime: '',
-      phone: ''
+      description: "",
+      appointmentDate: "",
+      appointmentTime: "",
+      location: "",
+      payment_method: "Cash", // <-- same default
     });
-    setRequestError('');
-    setRequestSuccess('');
   };
 
   const handleCloseRequestDialog = () => {
@@ -92,32 +107,45 @@ const ServicesPage = () => {
 
   const handleSubmitRequest = async () => {
     // Basic validation: all fields are required
-    const { description, appointmentDate, appointmentTime, phone } = requestForm;
-    if (!description || !appointmentDate || !appointmentTime || !phone) {
-      setRequestError("All fields are required.");
+    const {
+      description,
+      appointmentDate,
+      appointmentTime,
+      location,
+      payment_method,
+    } = requestForm;
+
+    if (
+      !description ||
+      !appointmentDate ||
+      !appointmentTime ||
+      !location ||
+      !payment_method
+    ) {
+      showToast("Please fill out all required fields.", "error");
       return;
     }
 
     // Prepare payload for creating a service request
     const payload = {
       provider_id: selectedProvider._id,
-      description: description,
-      date: appointmentDate,
-      time: appointmentTime,
-      phone: phone,
-      // Additional user details (e.g., user's name) could be added here if available from AuthContext
+      description,
+      appointment_date: appointmentDate,
+      appointment_time: appointmentTime,
+      location: requestForm.location,
+      payment_method: requestForm.payment_method,
     };
 
     try {
       const res = await createServiceRequest(payload);
-      setRequestSuccess(`Request sent. ID: ${res.data.request_id}`);
+      showToast(`Request sent. ID: ${res.data.request_id}`, "success");
       // Optionally, close the dialog after a short delay
       setTimeout(() => {
         handleCloseRequestDialog();
       }, 2000);
     } catch (err) {
       console.error(err);
-      setRequestError("Failed to send request. Please try again.");
+      showToast("Failed to send request. Please try again.", "error");
     }
   };
 
@@ -130,9 +158,23 @@ const ServicesPage = () => {
         <img
           src="https://img.freepik.com/free-photo/people-collage-design_23-2148888271.jpg"
           alt="ServiceBuddy Welcome"
-          style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(50%)" }}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            filter: "brightness(50%)",
+          }}
         />
-        <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "white", textAlign: "center" }}>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            color: "white",
+            textAlign: "center",
+          }}
+        >
           <Typography variant="h3" fontWeight="bold">
             Book Trusted Technicians for All Home Repairs and Services
           </Typography>
@@ -141,7 +183,9 @@ const ServicesPage = () => {
 
       {/* Main Content */}
       <Box sx={{ textAlign: "center", p: 5 }}>
-        <Typography variant="h4" gutterBottom>Services</Typography>
+        <Typography variant="h4" gutterBottom>
+          Services
+        </Typography>
 
         {/* Services List */}
         <Grid container spacing={2} sx={{ mb: 4 }}>
@@ -156,7 +200,11 @@ const ServicesPage = () => {
                 />
                 <CardContent>
                   <Typography variant="h6">{service.name}</Typography>
-                  <Button variant="contained" sx={{ mt: 1 }} onClick={() => handleSelectService(service.name)}>
+                  <Button
+                    variant="contained"
+                    sx={{ mt: 1 }}
+                    onClick={() => handleSelectService(service.name)}
+                  >
                     View Providers
                   </Button>
                 </CardContent>
@@ -186,10 +234,10 @@ const ServicesPage = () => {
                         Location: {provider.location}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Services: {provider.services_offered?.join(', ')}
+                        Services: {provider.services_offered?.join(", ")}
                       </Typography>
-                      <Button 
-                        variant="outlined" 
+                      <Button
+                        variant="outlined"
                         sx={{ mt: 1 }}
                         onClick={() => handleOpenRequestDialog(provider)}
                       >
@@ -213,9 +261,7 @@ const ServicesPage = () => {
 
       {/* Request Provider Dialog */}
       <Dialog open={openRequestDialog} onClose={handleCloseRequestDialog}>
-        <DialogTitle>
-          Request Service from {selectedProvider?.name}
-        </DialogTitle>
+        <DialogTitle>Request Service from {selectedProvider?.name}</DialogTitle>
         <DialogContent>
           <TextField
             margin="dense"
@@ -248,19 +294,32 @@ const ServicesPage = () => {
             onChange={handleRequestFormChange}
           />
           <TextField
-            margin="dense"
-            label="Contact Number"
-            name="phone"
+            select
+            label="Payment Method"
+            name="payment_method"
             fullWidth
-            value={requestForm.phone}
+            value={requestForm.payment_method}
+            onChange={handleRequestFormChange}
+            SelectProps={{ native: true }}
+          >
+            <option value="Cash">Cash</option>
+            <option value="Online">Online</option>
+          </TextField>
+
+          <TextField
+            margin="dense"
+            label="Service Location"
+            name="location"
+            fullWidth
+            value={requestForm.location}
             onChange={handleRequestFormChange}
           />
-          {requestError && <Typography color="error" variant="body2">{requestError}</Typography>}
-          {requestSuccess && <Typography color="primary" variant="body2">{requestSuccess}</Typography>}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseRequestDialog}>Cancel</Button>
-          <Button variant="contained" onClick={handleSubmitRequest}>Send Request</Button>
+          <Button variant="contained" onClick={handleSubmitRequest}>
+            Send Request
+          </Button>
         </DialogActions>
       </Dialog>
     </>

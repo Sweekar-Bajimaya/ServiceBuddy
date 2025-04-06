@@ -76,3 +76,12 @@ export const deleteProvider = async (id) => {
     throw new Error(error.response?.data?.message || error.message);
   }
 };
+
+export const verifyEmail = async (token) => {
+  try {
+    const response = await API.post("/verify-email/", { token });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || error.message);
+  }
+};

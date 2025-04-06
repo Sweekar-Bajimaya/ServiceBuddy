@@ -18,4 +18,5 @@ urlpatterns = [
     path('admin/requestview/', AdminRequestsView.as_view(), name='admin_requestsView'),
     path('admin/providerslist/', AdminProvidersListView.as_view(), name = 'admin_providers' ),
     path('delete-provider/<str:provider_id>/', DeleteProviderView.as_view(), name='delete_provider'),
+    path('verify-email/', VerifyEmailView.as_view(), name='verify-email')
 ]

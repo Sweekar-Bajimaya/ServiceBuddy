@@ -4,7 +4,7 @@ import ConstructionIcon from "@mui/icons-material/Construction";
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 
-const Navbar = () => {
+const Navbar = ({transparent = true}) => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -33,7 +33,12 @@ const Navbar = () => {
   };
 
   return (
-    <AppBar position="absolute" sx={{ backgroundColor: 'transparent', boxShadow: 'none', px: 16 }}>
+    <AppBar position="absolute" 
+    sx={{
+      backgroundColor: transparent ? "transparent" : "primary.main",
+      boxShadow: transparent ? "none" : 2,
+      transition: "background-color 0.3s",
+    }}>
       <Toolbar>
         <IconButton edge="start" color="inherit">
           <ConstructionIcon />

@@ -1,7 +1,17 @@
-// src/components/requests/MyBookings.js
-import React, { useEffect, useState } from 'react';
-import { getMyBookings } from '../../services/api';
-import { Box, Typography, Card, CardContent, Grid } from '@mui/material';
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Typography,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Paper,
+  TableContainer,
+} from "@mui/material";
+import { getMyBookings } from "../../services/api";
+import Navbar from "../common/Navbar";
 
 const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
@@ -9,9 +19,11 @@ const MyBookings = () => {
   const fetchBookings = async () => {
     try {
       const res = await getMyBookings();
-      setBookings(res.data);
+      const sorted = res.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)
+      );
+      setBookings(sorted);
     } catch (err) {
-      console.error('Failed to fetch bookings:', err);
+      console.error("Failed to fetch bookings:", err);
     }
   };
 
@@ -20,25 +32,50 @@ const MyBookings = () => {
   }, []);
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h5" gutterBottom>My Bookings</Typography>
-      <Grid container spacing={2}>
-        {bookings.map((booking) => (
-          <Grid item xs={12} sm={6} md={4} key={booking.request_id}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6">Request ID: {booking.request_id}</Typography>
-                <Typography>Provider ID: {booking.provider_id}</Typography>
-                <Typography>Provider Name: {booking.provider_name}</Typography>
-                <Typography>Service: {booking.requested_service}</Typography>
-                <Typography>Appointment Date: {booking.appointment_date}</Typography>
-                <Typography>Status: {booking.status}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    </Box>
+    <>
+      <Navbar transparent={false} />
+      <Box sx={{ p: 4, mt: 8 }}>
+        <Typography variant="h5" gutterBottom>
+          My Bookings
+        </Typography>
+
+        <TableContainer component={Paper} sx={{ mt: 3 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Request ID</TableCell>
+                <TableCell>Provider Name</TableCell>
+                <TableCell>Service</TableCell>
+                <TableCell>Appointment Date</TableCell>
+                <TableCell>Appointment Time</TableCell>
+                <TableCell>Payment Method</TableCell>
+                <TableCell>Status</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {bookings.map((booking) => (
+                <TableRow key={booking.request_id}>
+                  <TableCell>{booking.request_id}</TableCell>
+                  <TableCell>{booking.provider_name || "Unknown"}</TableCell>
+                  <TableCell>{booking.requested_service}</TableCell>
+                  <TableCell>{booking.appointment_date}</TableCell>
+                  <TableCell>{booking.appointment_time || "N/A"}</TableCell>
+                  <TableCell>{booking.payment_method}</TableCell>
+                  <TableCell>{booking.status}</TableCell>
+                </TableRow>
+              ))}
+              {bookings.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    No bookings found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+    </>
   );
 };
 
