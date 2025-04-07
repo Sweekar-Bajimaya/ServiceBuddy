@@ -322,20 +322,19 @@ class ServiceRequestUpdate(APIView):
 class ProviderRequestView(APIView):
     permission_classes = [IsProvider]
     
-    def get (self, request):
-        #Get the provider's id from the authenticated user
+    def get(self, request):
         provider_id = request.user.get("user_id")
         if not provider_id:
             return Response({"error": "Provider ID not found in token."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        #query service_requests where provider_id matches with provider's id
+
         requests = list(MONGO_DB.service_requests.find({"provider_id": provider_id}))
-        
-        #convert ObjectID to string for each request
+
         for req in requests:
-            req["_id"]= str(req["_id"])
+            req["_id"] = str(req["_id"])
+            req["username"] = req.get("user_name", "Unknown")
+
         return Response(requests, status=status.HTTP_200_OK)
-    
+
 class AdminProviderView(APIView):
     permission_classes = [IsAdmin];
     
