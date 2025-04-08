@@ -24,7 +24,7 @@ const Footer = () => {
           <Grid item xs={12} sm={6}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Link 
-                href="/about" 
+                href="/aboutus" 
                 variant="body2" 
                 sx={{ color: 'inherit', mx: 1, textDecoration: 'none' }}
               >

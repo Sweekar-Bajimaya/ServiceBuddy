@@ -18,6 +18,7 @@ import AddProvider from './components/Admin/AddProvider';
 import AdminProvidersList from './components/Admin/AdminProviderList';
 import VerifyEmail from './components/auth/VerifyEmail';
 import ToastProvider from './components/common/ToastProvider';
+import AboutUs from './components/AboutUs';
 
 import './App.css';
 
@@ -32,6 +33,8 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/aboutus" element={<AboutUs />} />
+          
 
           {/* Protected Routes */}
           <Route path="/providers" element={<ProviderList />} />
