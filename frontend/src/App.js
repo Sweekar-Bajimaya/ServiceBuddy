@@ -19,6 +19,7 @@ import AdminProvidersList from './components/Admin/AdminProviderList';
 import VerifyEmail from './components/auth/VerifyEmail';
 import ToastProvider from './components/common/ToastProvider';
 import AboutUs from './components/AboutUs';
+import ContactPage from './components/ContactPage';
 
 import './App.css';
 
@@ -34,6 +35,7 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/aboutus" element={<AboutUs />} />
+          <Route path="/contact" element={<ContactPage />} />
           
 
           {/* Protected Routes */}
