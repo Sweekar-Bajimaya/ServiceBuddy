@@ -326,11 +326,53 @@ const Navbar = ({ transparent = true }) => {
 
         {isMobile ? (
           <>
-            <IconButton color="inherit" onClick={handleNotifOpen}>
-              <Badge badgeContent={unreadCount} color="error">
-                <NotificationsIcon />
-              </Badge>
-            </IconButton>
+            {user && (
+              <>
+                <IconButton color="inherit" onClick={handleNotifOpen}>
+                  <Badge badgeContent={unreadCount} color="error">
+                    <NotificationsIcon />
+                  </Badge>
+                </IconButton>
+                <Menu
+                  anchorEl={notifAnchorEl}
+                  open={Boolean(notifAnchorEl)}
+                  onClose={handleNotifClose}
+                  PaperProps={{ elevation: 3, sx: { mt: 1, width: 270 } }}
+                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                  transformOrigin={{ vertical: "top", horizontal: "right" }}
+                >
+                  {notifications.length === 0 ? (
+                    <MenuItem disabled>No notifications</MenuItem>
+                  ) : (
+                    notifications.map((notif) => (
+                      <MenuItem
+                        key={notif.id}
+                        onClick={() => handleMarkAsRead(notif.id)}
+                        sx={{
+                          fontWeight: notif.read ? "normal" : "bold",
+                          backgroundColor:
+                            notif.type === "success"
+                              ? "rgba(76, 175, 80, 0.1)"
+                              : notif.type === "error"
+                              ? "rgba(244, 67, 54, 0.1)"
+                              : "inherit",
+                          color:
+                            notif.type === "success"
+                              ? "success.main"
+                              : notif.type === "error"
+                              ? "error.main"
+                              : "text.primary",
+                          my: 0.5,
+                          borderRadius: 1,
+                        }}
+                      >
+                        {notif.message}
+                      </MenuItem>
+                    ))
+                  )}
+                </Menu>
+              </>
+            )}
             <IconButton color="inherit" onClick={() => setDrawerOpen(true)}>
               <MenuIcon />
             </IconButton>
@@ -339,8 +381,8 @@ const Navbar = ({ transparent = true }) => {
               open={drawerOpen}
               onClose={() => setDrawerOpen(false)}
               sx={{
-                '& .MuiDrawer-paper': {
-                  animation: 'slideIn 0.3s ease-out',
+                "& .MuiDrawer-paper": {
+                  animation: "slideIn 0.3s ease-out",
                 },
               }}
             >
@@ -358,11 +400,6 @@ const Navbar = ({ transparent = true }) => {
             <Button color="inherit" component={Link} to="/contact">
               Contact
             </Button>
-            <IconButton color="inherit" onClick={handleNotifOpen}>
-              <Badge badgeContent={unreadCount} color="error">
-                <NotificationsIcon />
-              </Badge>
-            </IconButton>
             {user ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <IconButton onClick={handleMenuOpen} size="large" sx={{ p: 0 }}>
@@ -386,6 +423,51 @@ const Navbar = ({ transparent = true }) => {
                   <MenuItem onClick={handleMyBookings}>My Bookings</MenuItem>
                   <MenuItem onClick={handleLogout}>Logout</MenuItem>
                 </Menu>
+
+                {/* Notification Icon and Dropdown */}
+                <IconButton color="inherit" onClick={handleNotifOpen}>
+                  <Badge badgeContent={unreadCount} color="error">
+                    <NotificationsIcon />
+                  </Badge>
+                </IconButton>
+                <Menu
+                  anchorEl={notifAnchorEl}
+                  open={Boolean(notifAnchorEl)}
+                  onClose={handleNotifClose}
+                  PaperProps={{ elevation: 3, sx: { mt: 1, width: 270 } }}
+                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                  transformOrigin={{ vertical: "top", horizontal: "right" }}
+                >
+                  {notifications.length === 0 ? (
+                    <MenuItem disabled>No notifications</MenuItem>
+                  ) : (
+                    notifications.map((notif) => (
+                      <MenuItem
+                        key={notif.id}
+                        onClick={() => handleMarkAsRead(notif.id)}
+                        sx={{
+                          fontWeight: notif.read ? "normal" : "bold",
+                          backgroundColor:
+                            notif.type === "success"
+                              ? "rgba(76, 175, 80, 0.1)"
+                              : notif.type === "error"
+                              ? "rgba(244, 67, 54, 0.1)"
+                              : "inherit",
+                          color:
+                            notif.type === "success"
+                              ? "success.main"
+                              : notif.type === "error"
+                              ? "error.main"
+                              : "text.primary",
+                          my: 0.5,
+                          borderRadius: 1,
+                        }}
+                      >
+                        {notif.message}
+                      </MenuItem>
+                    ))
+                  )}
+                </Menu>
               </Box>
             ) : (
               <Button color="inherit" onClick={() => navigate("/login")}>
@@ -394,46 +476,6 @@ const Navbar = ({ transparent = true }) => {
             )}
           </Stack>
         )}
-
-        {/* Notification Dropdown */}
-        <Menu
-          anchorEl={notifAnchorEl}
-          open={Boolean(notifAnchorEl)}
-          onClose={handleNotifClose}
-          PaperProps={{ elevation: 3, sx: { mt: 1, width: 270 } }}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-          transformOrigin={{ vertical: "top", horizontal: "right" }}
-        >
-          {notifications.length === 0 ? (
-            <MenuItem disabled>No notifications</MenuItem>
-          ) : (
-            notifications.map((notif) => (
-              <MenuItem
-                key={notif.id}
-                onClick={() => handleMarkAsRead(notif.id)}
-                sx={{
-                  fontWeight: notif.read ? "normal" : "bold",
-                  backgroundColor:
-                    notif.type === "success"
-                      ? "rgba(76, 175, 80, 0.1)"
-                      : notif.type === "error"
-                      ? "rgba(244, 67, 54, 0.1)"
-                      : "inherit",
-                  color:
-                    notif.type === "success"
-                      ? "success.main"
-                      : notif.type === "error"
-                      ? "error.main"
-                      : "text.primary",
-                  my: 0.5,
-                  borderRadius: 1,
-                }}
-              >
-                {notif.message}
-              </MenuItem>
-            ))
-          )}
-        </Menu>
       </Toolbar>
     </AppBar>
   );
