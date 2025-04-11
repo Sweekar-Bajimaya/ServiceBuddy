@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Divider,
 } from "@mui/material";
 import { getProviders, createServiceRequest } from "../services/api";
 import Navbar from "./common/Navbar";
@@ -157,7 +158,7 @@ const ServicesPage = () => {
       <Box sx={{ position: "relative", height: "50vh", overflow: "hidden" }}>
         <img
           src="https://img.freepik.com/free-photo/people-collage-design_23-2148888271.jpg"
-          alt="ServiceBuddy Welcome"
+          alt="About Us"
           style={{
             width: "100%",
             height: "100%",
@@ -175,17 +176,23 @@ const ServicesPage = () => {
             textAlign: "center",
           }}
         >
-          <Typography variant="h3" fontWeight="bold">
-            Book Trusted Technicians for All Home Repairs and Services
+          <Typography
+            variant="h2"
+            sx={{
+              fontWeight: 700,
+              fontSize: { xs: "2.5rem", sm: "4rem" },
+              lineHeight: 1.2,
+              mb: 2,
+              textTransform: "uppercase",
+            }}
+          >
+            Services
           </Typography>
         </Box>
       </Box>
 
       {/* Main Content */}
-      <Box sx={{ textAlign: "center", p: 5 }}>
-        <Typography variant="h4" gutterBottom>
-          Services
-        </Typography>
+      <Box sx={{ textAlign: "center", p: 4, px: { xs: 2, sm: 4, md: 6 } }}>
 
         {/* Services List */}
         <Grid container spacing={2} sx={{ mb: 4 }}>
@@ -215,7 +222,7 @@ const ServicesPage = () => {
 
         {/* Display Selected Service Providers */}
         {selectedService && (
-          <Box sx={{ mt: 4 }}>
+          <Box sx={{ mt: 4 }}>            
             <Typography variant="h5" gutterBottom>
               Providers offering: {selectedService}
             </Typography>

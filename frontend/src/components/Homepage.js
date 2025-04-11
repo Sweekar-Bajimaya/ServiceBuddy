@@ -183,7 +183,7 @@ const HomePage = () => {
           position: "relative",
           width: "100%",
           height: "100vh",
-          backgroundImage: "url('https://img.freepik.com/free-photo/worker-is-cutting-wires-with-lineman-s-pliers_169016-15689.jpg?t=st=1744129868~exp=1744133468~hmac=cae74e38fc04b53a16b9f79ab007793044bc9e1798d942e5bd712e8c64c9bc95&w=1380')", // Update with your preferred image
+          backgroundImage: "url('https://img.freepik.com/free-photo/worker-is-cutting-wires-with-lineman-s-pliers_169016-15689.jpg?t=st=1744273986~exp=1744277586~hmac=4bf1804ae320c7f543aa5a1feccfaf358087b177736ab6a133e3dd6078e7053a&w=1380')", // Update with your preferred image
           backgroundSize: "cover",
           backgroundPosition: "center",
           display: "flex",
