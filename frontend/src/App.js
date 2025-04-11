@@ -20,6 +20,7 @@ import VerifyEmail from './components/auth/VerifyEmail';
 import ToastProvider from './components/common/ToastProvider';
 import AboutUs from './components/AboutUs';
 import ContactPage from './components/ContactPage';
+// import Appointment from './components/providers/Appointment';
 
 import './App.css';
 
@@ -45,6 +46,7 @@ function App() {
           <Route path="/generate-bill" element={<BillGeneration />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/provider-requests" element={<ProviderRequests />} />
+          {/* <Route path="/appointment" element={<Appointment />} /> */}
 
           {/* Provider Protected Route */}
           <Route element={<ProviderRoute />}>

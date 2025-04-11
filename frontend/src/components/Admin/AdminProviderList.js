@@ -255,9 +255,6 @@ const AdminProviderList = () => {
       <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}>
         <Toolbar />
         <Container maxWidth="lg">
-          <Typography variant="h4" gutterBottom>
-            Service Providers
-          </Typography>
           <TextField
             label="Search Provider"
             variant="outlined"
