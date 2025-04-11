@@ -244,25 +244,72 @@ class ServiceProviderList(APIView):
         # Convert ObjectIds to strings
         for provider in service_providers:
             provider["_id"] = str(provider["_id"])
+            provider["available_time"] = provider.get("available_time", [])
 
         return Response(service_providers, status=status.HTTP_200_OK)
     
 
+# class ServiceRequestCreate(APIView):
+#     permission_classes = [IsUser]
+#     def post(self, request):
+#         serializer = ServiceRequestSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         validated_data = serializer.validated_data
+        
+#         # Convert date and time to strings if they exist
+#         appointment_date = validated_data.get("appointment_date")
+#         appointment_time = validated_data.get("appointment_time")
+#         if appointment_date:
+#             appointment_date = appointment_date.isoformat()  # e.g., "2025-03-05"
+#         if appointment_time:
+#             appointment_time = appointment_time.isoformat()  # e.g., "14:00:00"
+        
+#         # Prepare the service request data
+#         service_request = {
+#             "user_id": request.user["user_id"],
+#             "user_name": request.user["name"],
+#             "provider_id": validated_data["provider_id"],
+#             "description": validated_data.get("description", ""),
+#             "location": validated_data["location"],
+#             "appointment_date": appointment_date,  
+#             "appointment_time": appointment_time,  
+#             "payment_method": validated_data.get("payment_method"),
+#             "status": "pending",
+#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
+#         }
+#         result = MONGO_DB.service_requests.insert_one(service_request)
+        
+#         # Create a notification for the provider.
+#         notification = {
+#             "to": validated_data["provider_id"],
+#             "type": "service_request",
+#             "service_request_id": str(result.inserted_id),
+#             "message": "New service request received.",
+#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
+#         }
+#         MONGO_DB.notifications.insert_one(notification)
+        
+#         return Response(
+#             {
+#                 "request_id": str(result.inserted_id),
+#                 "message": "Service request sent."
+#             },
+#             status=status.HTTP_201_CREATED
+#         )
+
 class ServiceRequestCreate(APIView):
     permission_classes = [IsUser]
+
     def post(self, request):
         serializer = ServiceRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        
-        # Convert date and time to strings if they exist
+
+        # Convert appointment_date to ISO string
         appointment_date = validated_data.get("appointment_date")
-        appointment_time = validated_data.get("appointment_time")
         if appointment_date:
             appointment_date = appointment_date.isoformat()  # e.g., "2025-03-05"
-        if appointment_time:
-            appointment_time = appointment_time.isoformat()  # e.g., "14:00:00"
-        
+
         # Prepare the service request data
         service_request = {
             "user_id": request.user["user_id"],
@@ -270,15 +317,17 @@ class ServiceRequestCreate(APIView):
             "provider_id": validated_data["provider_id"],
             "description": validated_data.get("description", ""),
             "location": validated_data["location"],
-            "appointment_date": appointment_date,  
-            "appointment_time": appointment_time,  
+            "appointment_date": appointment_date,
+            "shift_start_time": validated_data["shift_start_time"],  # e.g., "08:00"
+            "shift_end_time": validated_data["shift_end_time"],      # e.g., "10:00"
             "payment_method": validated_data.get("payment_method"),
             "status": "pending",
             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
         }
+
         result = MONGO_DB.service_requests.insert_one(service_request)
-        
-        # Create a notification for the provider.
+
+        # Create a notification for the provider
         notification = {
             "to": validated_data["provider_id"],
             "type": "service_request",
@@ -287,7 +336,7 @@ class ServiceRequestCreate(APIView):
             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
         }
         MONGO_DB.notifications.insert_one(notification)
-        
+
         return Response(
             {
                 "request_id": str(result.inserted_id),
@@ -295,6 +344,7 @@ class ServiceRequestCreate(APIView):
             },
             status=status.HTTP_201_CREATED
         )
+
 
 # servicebuddy_app/views.py (continued)
 class ServiceRequestUpdate(APIView):
@@ -469,15 +519,13 @@ class MyBookings(APIView):
     permission_classes = [IsUser]
 
     def get(self, request):
-        # Get the logged-in user's id (assumed to be stored as a string in the JWT payload)
         user_id = request.user.get("user_id")
         if not user_id:
             return Response({"error": "User not found in token."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Query service_requests where the user_id matches the logged-in user.
         bookings = list(MONGO_DB.service_requests.find({"user_id": user_id}))
         results = []
-        
+
         for booking in bookings:
             provider_id = booking.get("provider_id")
             try:
@@ -486,22 +534,18 @@ class MyBookings(APIView):
                 provider = None
             provider_name = provider["name"] if provider and "name" in provider else "Unknown"
 
+            # Format appointment date
             appointment_date = booking.get("appointment_date")
-            appointment_time = booking.get("appointment_time")
-
-            # Format date
             appointment_date_str = ""
             if isinstance(appointment_date, datetime):
                 appointment_date_str = appointment_date.strftime("%Y-%m-%d")
             elif isinstance(appointment_date, str):
                 appointment_date_str = appointment_date
 
-            # Format time
-            appointment_time_str = ""
-            if isinstance(appointment_time, datetime):
-                appointment_time_str = appointment_time.strftime("%H:%M")
-            elif isinstance(appointment_time, str):
-                appointment_time_str = appointment_time[:5]  # Format HH:MM
+            # Handle shift times
+            shift_start = booking.get("shift_start_time", "")
+            shift_end = booking.get("shift_end_time", "")
+            time_shift = f"{shift_start} - {shift_end}" if shift_start and shift_end else "N/A"
 
             payment_method = booking.get("payment_method", "Not Provided")
 
@@ -511,11 +555,13 @@ class MyBookings(APIView):
                 "provider_name": provider_name,
                 "requested_service": booking.get("description", ""),
                 "appointment_date": appointment_date_str,
-                "appointment_time": appointment_time_str,
-                "payment_method": payment_method, 
+                "time_shift": time_shift,
+                "payment_method": payment_method,
                 "status": booking.get("status", "")
             })
+
         return Response(results, status=status.HTTP_200_OK)
+
 
 
 class RequestPasswordResetView(APIView):

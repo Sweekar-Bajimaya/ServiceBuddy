@@ -19,7 +19,8 @@ const MyBookings = () => {
   const fetchBookings = async () => {
     try {
       const res = await getMyBookings();
-      const sorted = res.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)
+      const sorted = res.data.sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
       );
       setBookings(sorted);
     } catch (err) {
@@ -47,7 +48,7 @@ const MyBookings = () => {
                 <TableCell>Provider Name</TableCell>
                 <TableCell>Service</TableCell>
                 <TableCell>Appointment Date</TableCell>
-                <TableCell>Appointment Time</TableCell>
+                <TableCell>Time Shift</TableCell>
                 <TableCell>Payment Method</TableCell>
                 <TableCell>Status</TableCell>
               </TableRow>
@@ -59,7 +60,7 @@ const MyBookings = () => {
                   <TableCell>{booking.provider_name || "Unknown"}</TableCell>
                   <TableCell>{booking.requested_service}</TableCell>
                   <TableCell>{booking.appointment_date}</TableCell>
-                  <TableCell>{booking.appointment_time || "N/A"}</TableCell>
+                  <TableCell>{booking.time_shift || "N/A"}</TableCell>
                   <TableCell>{booking.payment_method}</TableCell>
                   <TableCell>{booking.status}</TableCell>
                 </TableRow>

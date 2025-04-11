@@ -2,11 +2,17 @@ from rest_framework import serializers
 from django.core.validators import RegexValidator
 from .db import MONGO_DB
 from django.contrib.auth.hashers import make_password
+from datetime import datetime
 
 phone_regex = RegexValidator(
     regex=r'^\+?1?\d{9,15}$',
     message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed."
 )
+
+class TimeShiftSerializer(serializers.Serializer):
+    start_time = serializers.TimeField(required=True)
+    end_time = serializers.TimeField(required=True)
+
 class RegisterSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=100)
     email = serializers.EmailField()
@@ -14,7 +20,8 @@ class RegisterSerializer(serializers.Serializer):
     location = serializers.CharField(max_length=100)
     phone_num = serializers.CharField(validators=[phone_regex], required=True)
     user_type = serializers.CharField(default="user")  # Defaults to "user" if not provided
-    services_offered = serializers.ListField(child=serializers.CharField(max_length=100), required=False)  # Ensure services_offered is properly handled
+    services_offered = serializers.ListField(child=serializers.CharField(max_length=100), required=False)
+    available_time = serializers.ListField(child=TimeShiftSerializer(), required=False)
 
     def validate(self, data):
         """
@@ -27,6 +34,15 @@ class RegisterSerializer(serializers.Serializer):
         # Ensure only valid user types are used
         if data["user_type"] not in ["user", "provider"]:
             raise serializers.ValidationError({"user_type": "Invalid user type."})
+
+        # Ensure available_time is in the correct format (string instead of datetime.time)
+        if data.get("available_time"):
+            for shift in data["available_time"]:
+                shift["start_time"] = shift["start_time"].strftime("%H:%M")
+                shift["end_time"] = shift["end_time"].strftime("%H:%M")
+
+        if data.get("user_type") == "provider" and "available_time" not in data:
+            data["available_time"] = []  # default to empty list
 
         return data
 
@@ -47,9 +63,9 @@ class RegisterSerializer(serializers.Serializer):
 
         # Convert `_id` to string for better compatibility with frontend
         validated_data["_id"] = str(result.inserted_id)
-        
+
         return validated_data
-    
+
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -75,6 +91,7 @@ class ServiceRequestSerializer(serializers.Serializer):
     provider_id = serializers.CharField()
     description = serializers.CharField(allow_blank=True, required=False)
     appointment_date = serializers.DateField(required=True, allow_null=True)
-    appointment_time = serializers.TimeField(required=True, allow_null=True)
+    shift_start_time = serializers.CharField()
+    shift_end_time = serializers.CharField()
     location = serializers.CharField(required = True)
     payment_method = serializers.ChoiceField(choices=['Cash', 'Online'], required = True)

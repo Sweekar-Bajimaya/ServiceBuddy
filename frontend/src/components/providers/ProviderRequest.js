@@ -276,7 +276,11 @@ const ProviderRequests = () => {
                       <TableCell>{req.username || 'Unknown User'}</TableCell>
                       <TableCell>{req.description}</TableCell>
                       <TableCell>{req.appointment_date}</TableCell>
-                      <TableCell>{req.appointment_time}</TableCell>
+                      <TableCell>
+                        {req.shift_start_time && req.shift_end_time
+                          ? `${req.shift_start_time} - ${req.shift_end_time}`
+                          : 'N/A'}
+                      </TableCell>
                       <TableCell>{req.status}</TableCell>
                       <TableCell>
                         {req.status === 'pending' ? (
