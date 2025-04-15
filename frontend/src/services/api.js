@@ -85,3 +85,11 @@ export const verifyEmail = async (token) => {
     throw new Error(error.response?.data?.message || error.message);
   }
 };
+
+export const getProviderSchedule = () => API.get("/provider/schedule/");
+export const updateBookingStatus = (requestId, status) =>
+  API.patch(`/provider/update-status/${requestId}/`, { status });
+
+export const getProviderDashboardSummary = () => {
+  return API.get("/provider/dashboard-summary/");
+};

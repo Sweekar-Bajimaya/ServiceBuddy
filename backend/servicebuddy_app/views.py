@@ -377,13 +377,54 @@ class ProviderRequestView(APIView):
         if not provider_id:
             return Response({"error": "Provider ID not found in token."}, status=status.HTTP_400_BAD_REQUEST)
 
-        requests = list(MONGO_DB.service_requests.find({"provider_id": provider_id}))
+        requests = list(MONGO_DB.service_requests.find({"provider_id": provider_id}).sort("created_at", -1))
 
         for req in requests:
             req["_id"] = str(req["_id"])
             req["username"] = req.get("user_name", "Unknown")
 
         return Response(requests, status=status.HTTP_200_OK)
+    
+class ProviderScheduleView(APIView):
+    permission_classes = [IsProvider]
+
+    def get(self, request):
+        provider_id = request.user.get("user_id")
+
+        bookings = list(MONGO_DB.service_requests.find({
+            "provider_id": provider_id,
+            "status": { "$regex": "^(accept|Not Started|In Progress|Complete)$", "$options": "i" }
+        }).sort("created_at", -1))
+
+        for booking in bookings:
+            booking["_id"] = str(booking["_id"])
+            booking["user_name"] = booking.get("user_name", "Unknown User")
+            booking["appointment_date"] = booking.get("appointment_date", "")
+            booking["shift_start_time"] = booking.get("shift_start_time", "")
+            booking["shift_end_time"] = booking.get("shift_end_time", "")
+            booking["description"] = booking.get("description", "")
+            booking["location"] = booking.get("location", "")
+            booking["status"] = booking.get("status", "Accepted")
+
+        return Response(bookings)
+
+
+class UpdateBookingStatusView(APIView):
+    permission_classes = [IsProvider]
+    def patch(self, request, request_id):
+        new_status = request.data.get("status")
+        if new_status not in ["In Progress", "Completed", "Not Completed"]:
+            return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+
+        result = MONGO_DB.service_requests.update_one(
+            {"_id": ObjectId(request_id), "status": {"$in": ["accept", "In Progress"]}},
+            {"$set": {"status": new_status}}
+        )
+
+        if result.matched_count == 0:
+            return Response({"error": "Booking not found or not eligible for update"}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({"message": "Status updated successfully"}, status=status.HTTP_200_OK)
 
 class AdminProviderView(APIView):
     permission_classes = [IsAdmin];
@@ -617,4 +658,24 @@ class PasswordResetConfirmView(APIView):
             return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
         else:
             return Response({"error": "Failed to reset password."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
+
+class ProviderDashboardSummaryView(APIView):
+    permission_classes = [IsProvider]
+
+    def get(self, request):
+        provider_id = request.user.get("user_id")
+        if not provider_id:
+            return Response({"error": "Provider not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        total_requests = MONGO_DB.service_requests.count_documents({"provider_id": provider_id})
+        jobs_completed = MONGO_DB.service_requests.count_documents({"provider_id": provider_id, "status": "Completed"})
+        jobs_in_progress = MONGO_DB.service_requests.count_documents({"provider_id": provider_id, "status": "In Progress"})
+        jobs_not_completed = MONGO_DB.service_requests.count_documents({"provider_id": provider_id, "status": "Not Completed"})
+
+        return Response({
+            "total_requests": total_requests,
+            "jobs_completed": jobs_completed,
+            "jobs_in_progress": jobs_in_progress,
+            "jobs_not_completed": jobs_not_completed
+        }, status=status.HTTP_200_OK)

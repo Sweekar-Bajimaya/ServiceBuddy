@@ -155,7 +155,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import {
   AppBar, Toolbar, Typography, Drawer, Box, IconButton,
   Button, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Paper, Alert, Snackbar, Container
+  TableHead, TableRow, Paper, Alert, Snackbar, Container, CircularProgress
 } from '@mui/material';
 import { Menu as MenuIcon } from "@mui/icons-material";
 import { getProviderRequests, updateServiceRequest } from '../../services/api';
@@ -170,6 +170,7 @@ const ProviderRequests = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const { user } = useContext(AuthContext);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -182,6 +183,8 @@ const ProviderRequests = () => {
     } catch (err) {
       console.error(err);
       setError('Failed to load requests.');
+    }finally{
+      setLoading(false);
     }
   };
 
@@ -204,6 +207,14 @@ const ProviderRequests = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ display: "flex" }}>
       <AppBar position="fixed" sx={{ width: { sm: `calc(100% - ${drawerWidth}px)` }, ml: { sm: `${drawerWidth}px` } }}>
@@ -214,10 +225,8 @@ const ProviderRequests = () => {
           <Typography variant="h6" noWrap component="div">
             Service Requests
           </Typography>
-          <Box sx={{ ml: "auto", mr: 4 }}>
-            <Typography variant="h6">
-              {user ? `Mr. ${user.name}` : 'Loading...'}
-            </Typography>
+          <Box sx={{ ml: "auto", fontWeight: 'bold'}}>
+            {user ? `Mr. ${user.name}` : 'Loading...'}
           </Box>
         </Toolbar>
       </AppBar>
@@ -237,12 +246,8 @@ const ProviderRequests = () => {
         </Drawer>
       </Box>
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` }, mt: 8 }}>
-        <Container maxWidth="lg">
-          <Typography variant="h4" gutterBottom>
-            User Requests
-          </Typography>
-
+      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8 , width: { sm: `calc(100% - ${drawerWidth}px)` }}}>
+        <Container maxWidth="xl">
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           <Snackbar
             open={!!successMessage}
@@ -258,7 +263,7 @@ const ProviderRequests = () => {
           {requests.length === 0 ? (
             <Typography>No service requests found.</Typography>
           ) : (
-            <TableContainer component={Paper}>
+            <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
               <Table>
                 <TableHead>
                   <TableRow>

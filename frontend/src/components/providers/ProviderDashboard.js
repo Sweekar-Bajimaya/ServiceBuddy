@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -16,14 +16,17 @@ import {
   TableBody,
   TextField,
   Button,
+  CircularProgress,
 } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
 import Sidebar from "../common/Sidebar";
 import { AuthContext } from "../../context/AuthContext";
+import { getProviderDashboardSummary } from "../../services/api";
 
 const drawerWidth = 240;
 const ProviderDashboard = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { user } = useContext(AuthContext);
 
   // Toggle the sidebar for mobile
@@ -38,44 +41,56 @@ const ProviderDashboard = () => {
     { reference: "2025003", date: "January 10, 2025", lastUpdated: "January 12, 2025", subject: "Laptop Repair", status: "In Progress", priority: "Low" },
   ];
 
+  const [summary, setSummary] = useState({
+    total_requests: 0,
+    jobs_completed: 0,
+    jobs_in_progress: 0,
+    jobs_not_completed: 0,
+  });
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const res = await getProviderDashboardSummary();
+        setSummary(res.data);
+      } catch (error) {
+        console.error("Error fetching summary:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSummary();
+  }, []);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ display: "flex" }}>
-      {/* Topbar / AppBar */}
+      {/* Top App Bar */}
       <AppBar
         position="fixed"
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
+          backgroundColor: '#1976d2'
         }}
       >
         <Toolbar>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: "none" } }}
-          >
+          <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2, display: { sm: 'none' } }}>
             <MenuIcon />
           </IconButton>
-
-          {/* Left side: Admin Dashboard title */}
-          <Typography variant="h6" noWrap component="div">
-            Provider Dashboard
+          <Typography variant="h6" noWrap>
+            Dashboard
           </Typography>
-
-          {/* Right side: user name, but not flush-right */}
-          <Box
-            sx={{
-              ml: "auto",           // push this Box to the right
-              mr: 4,                // add space from the right edge
-              display: "flex",
-              alignItems: "center",
-              gap: 2,               // spacing between items in the box
-            }}
-          >
-            <Typography variant="h6" sx={{ color: "inherit" }}>
-              Mr.{user.name}
-            </Typography>
+          <Box sx={{ ml: 'auto', fontWeight: 'bold' }}>
+            {user ? `Mr. ${user.name}` : 'Loading...'}
           </Box>
         </Toolbar>
       </AppBar>
@@ -105,27 +120,35 @@ const ProviderDashboard = () => {
 
         {/* Summary Cards */}
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={4}>
-            <Card>
+          <Grid item xs={12} sm={3}>
+            <Card sx={{ backgroundColor: "#e3f2fd" }}>
               <CardContent>
                 <Typography variant="h6">Total Requests</Typography>
-                <Typography variant="h4" color="primary">530</Typography>
+                <Typography variant="h4" color="primary">{summary.total_requests}</Typography>
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={4}>
-            <Card>
+          <Grid item xs={12} sm={3}>
+            <Card sx={{ backgroundColor: "#e8f5e9" }}>
               <CardContent>
                 <Typography variant="h6">Jobs Completed</Typography>
-                <Typography variant="h4" color="primary">230</Typography>
+                <Typography variant="h4" color="success.main">{summary.jobs_completed}</Typography>
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={4}>
-            <Card>
+          <Grid item xs={12} sm={3}>
+            <Card sx={{ backgroundColor: "#fff8e1" }}>
               <CardContent>
-                <Typography variant="h6">Jobs in Progress</Typography>
-                <Typography variant="h4" color="primary">20</Typography>
+                <Typography variant="h6">Jobs In Progress</Typography>
+                <Typography variant="h4" color="warning.main">{summary.jobs_in_progress}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={3}>
+            <Card sx={{ backgroundColor: "#ffebee" }}>
+              <CardContent>
+                <Typography variant="h6">Not Completed</Typography>
+                <Typography variant="h4" color="error.main">{summary.jobs_not_completed}</Typography>
               </CardContent>
             </Card>
           </Grid>
@@ -133,11 +156,6 @@ const ProviderDashboard = () => {
 
         {/* Ticket Table */}
         <Box sx={{ mt: 4 }}>
-          {/* <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-            <TextField size="small" placeholder="Search here..." sx={{ width: 300 }} />
-            <Button variant="contained">+ Submit a Ticket</Button>
-          </Box> */}
-
           <Card>
             <CardContent>
               <Table>
