@@ -75,9 +75,11 @@ const AdminDashboard = () => {
               gap: 2,               // spacing between items in the box
             }}
           >
-            <Typography variant="h6" sx={{ color: "inherit" }}>
-              Mr.{user.name}
-            </Typography>
+            {user?.name && (
+              <Typography variant="h6" sx={{ color: "inherit" }}>
+                Mr.{user.name}
+              </Typography>
+            )}
           </Box>
         </Toolbar>
       </AppBar>
