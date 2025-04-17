@@ -168,6 +168,7 @@ import BuildIcon from "@mui/icons-material/Build";
 import PlumbingIcon from "@mui/icons-material/Plumbing";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
 import ElectricalServicesIcon from "@mui/icons-material/ElectricalServices";
+import ComputerIcon from '@mui/icons-material/Computer';
 
 const HomePage = () => {
   const { user } = useContext(AuthContext);
@@ -305,9 +306,9 @@ const HomePage = () => {
                 desc: "Get your home or office sparkling clean with professional help.",
               },
               {
-                icon: <BuildIcon sx={{ fontSize: 40, color: "primary.main" }} />,
-                title: "Repairs",
-                desc: "Furniture assembly, minor fixes, or odd jobs — all in one place.",
+                icon: <ComputerIcon sx={{ fontSize: 40, color: "primary.main" }} />,
+                title: "IT Experts",
+                desc: "Need tech support? Find IT professionals through us.",
               },
             ].map((service, index) => (
               <Grid item xs={12} sm={6} md={3} key={index}>
