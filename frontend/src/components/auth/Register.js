@@ -166,7 +166,7 @@ import {
   Button,
   Box,
 } from "@mui/material";
-import { registerUser, verifyEmail } from "../../services/api";
+import { registerUser } from "../../services/api";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "../common/ToastProvider";
 
@@ -190,19 +190,11 @@ const Register = () => {
     e.preventDefault();
     try {
       await registerUser(form);
-      showToast("Registered Successfully! Please verify your email.", "success");
+      showToast("Registered Successfully!", "success");
       navigate("/login");
     } catch (err) {
       console.error("Registration error:", err.response ? err.response.data : err);
       showToast(err.response?.data?.error || "Registration failed.", "error");
-    }
-    try {
-      await verifyEmail(form.email);
-      showToast("Verification email sent!", "success");
-    }
-    catch (err) {
-      console.error("Email verification error:", err.response ? err.response.data : err);
-      showToast(err.response?.data?.error || "Email verification failed.", "error");
     }
   };
 

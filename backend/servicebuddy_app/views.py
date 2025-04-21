@@ -7,14 +7,19 @@ from .utils import generate_tokens, generate_reset_token, verify_reset_token
 from datetime import datetime
 from django.contrib.auth.hashers import make_password, check_password
 from bson.objectid import ObjectId
-from rest_framework.permissions import IsAuthenticated
 import jwt
 from datetime import datetime, timedelta
 from django.conf import settings
 from .permissions import IsProvider, IsUser, IsAdmin  # Import your custom permissions
 from django.core.mail import send_mail
 from django.utils.crypto import get_random_string
+from rest_framework.parsers import MultiPartParser, FormParser
+import os
+from django.core.files.storage import FileSystemStorage
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 
+# -------------------------Register, Login, Verify Email-------------------------
 class RegisterView(APIView):
     # Allow unauthenticated access
     authentication_classes = []
@@ -88,8 +93,6 @@ class VerifyEmailView(APIView):
 
         return Response({"message": "Email verified successfully."}, status=status.HTTP_200_OK)
 
-
-
 class LoginView(APIView):
     authentication_classes = []
     permission_classes = []
@@ -129,6 +132,11 @@ class LoginView(APIView):
         # Generate authentication tokens
         access, refresh = generate_tokens(user)
 
+        # Retrieve the profile picture if it exists
+        profile_picture_url = None
+        if user.get("profile_picture"):
+            profile_picture_url = user["profile_picture"]
+
         # Redirect based on user type
         redirect_url = "/homepage"
         if user_type == "provider":
@@ -142,11 +150,12 @@ class LoginView(APIView):
                 "email": user["email"],
                 "user_type": user["user_type"],
                 "name": user["name"],
+                "profile_picture": profile_picture_url,
             },
             "redirect_url": redirect_url  # Send redirection URL to frontend
         }, status=status.HTTP_200_OK)
 
-# For Admin       
+# -------------------------Service Provider Management-------------------------       
 class AddServiceProviderView(APIView):
     """
     Allows Admin to register new service providers.
@@ -200,10 +209,12 @@ class AdminProvidersListView(APIView):
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-            
+            )   
 
 class DeleteProviderView(APIView):
+    """
+    API endpoint for admin to delete a service provider.
+    """
     permission_classes = [IsAdmin]
 
     def delete(self, request, provider_id):  # FIXED: "delete" instead of "DELETE"
@@ -224,8 +235,11 @@ class DeleteProviderView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
+# -------------------------Service Request Management-------------------------
 class ServiceProviderList(APIView):
+    """
+    API endpoint to fetch service providers based on location and service type.
+    """
     permission_classes = [IsUser]  # Ensure only authenticated users can access
 
     def get(self, request):
@@ -248,56 +262,10 @@ class ServiceProviderList(APIView):
 
         return Response(service_providers, status=status.HTTP_200_OK)
     
-
-# class ServiceRequestCreate(APIView):
-#     permission_classes = [IsUser]
-#     def post(self, request):
-#         serializer = ServiceRequestSerializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         validated_data = serializer.validated_data
-        
-#         # Convert date and time to strings if they exist
-#         appointment_date = validated_data.get("appointment_date")
-#         appointment_time = validated_data.get("appointment_time")
-#         if appointment_date:
-#             appointment_date = appointment_date.isoformat()  # e.g., "2025-03-05"
-#         if appointment_time:
-#             appointment_time = appointment_time.isoformat()  # e.g., "14:00:00"
-        
-#         # Prepare the service request data
-#         service_request = {
-#             "user_id": request.user["user_id"],
-#             "user_name": request.user["name"],
-#             "provider_id": validated_data["provider_id"],
-#             "description": validated_data.get("description", ""),
-#             "location": validated_data["location"],
-#             "appointment_date": appointment_date,  
-#             "appointment_time": appointment_time,  
-#             "payment_method": validated_data.get("payment_method"),
-#             "status": "pending",
-#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
-#         }
-#         result = MONGO_DB.service_requests.insert_one(service_request)
-        
-#         # Create a notification for the provider.
-#         notification = {
-#             "to": validated_data["provider_id"],
-#             "type": "service_request",
-#             "service_request_id": str(result.inserted_id),
-#             "message": "New service request received.",
-#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
-#         }
-#         MONGO_DB.notifications.insert_one(notification)
-        
-#         return Response(
-#             {
-#                 "request_id": str(result.inserted_id),
-#                 "message": "Service request sent."
-#             },
-#             status=status.HTTP_201_CREATED
-#         )
-
 class ServiceRequestCreate(APIView):
+    """
+    API endpoint to create a service request.
+    """
     permission_classes = [IsUser]
 
     def post(self, request):
@@ -345,9 +313,10 @@ class ServiceRequestCreate(APIView):
             status=status.HTTP_201_CREATED
         )
 
-
-# servicebuddy_app/views.py (continued)
 class ServiceRequestUpdate(APIView):
+    """
+    API endpoint to update a service request (accept/decline).
+    """
     permission_classes = [IsProvider]
     def patch(self, request, request_id):
         action = request.data.get("action")
@@ -357,7 +326,7 @@ class ServiceRequestUpdate(APIView):
         update_fields = {"status": action, "updated_at": datetime.utcnow() + timedelta(hours=5, minutes=45)}
         MONGO_DB.service_requests.update_one({"_id": ObjectId(request_id)}, {"$set": update_fields})
 
-        # Notify the user who created the request.
+        # Fetch the updated request
         service_request = MONGO_DB.service_requests.find_one({"_id": ObjectId(request_id)})
         notification = {
             "to": service_request["user_id"],
@@ -368,8 +337,12 @@ class ServiceRequestUpdate(APIView):
         }
         MONGO_DB.notifications.insert_one(notification)
         return Response({"message": f"Service request {action}ed."}, status=status.HTTP_200_OK)
-    
+
+# -------------------------Provider Management-------------------------
 class ProviderRequestView(APIView):
+    """
+    API endpoint for providers to view their service requests.
+    """
     permission_classes = [IsProvider]
     
     def get(self, request):
@@ -386,6 +359,9 @@ class ProviderRequestView(APIView):
         return Response(requests, status=status.HTTP_200_OK)
     
 class ProviderScheduleView(APIView):
+    """
+    API endpoint for providers to view their schedule.
+    """
     permission_classes = [IsProvider]
 
     def get(self, request):
@@ -408,8 +384,10 @@ class ProviderScheduleView(APIView):
 
         return Response(bookings)
 
-
 class UpdateBookingStatusView(APIView):
+    """
+    API endpoint for providers to update the status of a booking.
+    """
     permission_classes = [IsProvider]
     def patch(self, request, request_id):
         new_status = request.data.get("status")
@@ -426,7 +404,84 @@ class UpdateBookingStatusView(APIView):
 
         return Response({"message": "Status updated successfully"}, status=status.HTTP_200_OK)
 
+class ProviderDashboardSummaryView(APIView):
+    """
+    API endpoint for providers to view their dashboard summary.
+    """
+    permission_classes = [IsProvider]
+
+    def get(self, request):
+        provider_id = request.user.get("user_id")
+        if not provider_id:
+            return Response({"error": "Provider not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        total_requests = MONGO_DB.service_requests.count_documents({"provider_id": provider_id})
+        jobs_completed = MONGO_DB.service_requests.count_documents({"provider_id": provider_id, "status": "Completed"})
+        jobs_in_progress = MONGO_DB.service_requests.count_documents({"provider_id": provider_id, "status": "In Progress"})
+        jobs_not_completed = MONGO_DB.service_requests.count_documents({"provider_id": provider_id, "status": "Not Completed"})
+
+        return Response({
+            "total_requests": total_requests,
+            "jobs_completed": jobs_completed,
+            "jobs_in_progress": jobs_in_progress,
+            "jobs_not_completed": jobs_not_completed
+        }, status=status.HTTP_200_OK)
+
+class MyBookings(APIView):
+    """
+    API endpoint for users to view their service requests.
+    """
+    permission_classes = [IsUser]
+
+    def get(self, request):
+        user_id = request.user.get("user_id")
+        if not user_id:
+            return Response({"error": "User not found in token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        bookings = list(MONGO_DB.service_requests.find({"user_id": user_id}).sort("created_at", -1))
+        results = []
+
+        for booking in bookings:
+            provider_id = booking.get("provider_id")
+            try:
+                provider = MONGO_DB.providers.find_one({"_id": ObjectId(provider_id)})
+            except Exception:
+                provider = None
+            provider_name = provider["name"] if provider and "name" in provider else "Unknown"
+
+            # Format appointment date
+            appointment_date = booking.get("appointment_date")
+            appointment_date_str = ""
+            if isinstance(appointment_date, datetime):
+                appointment_date_str = appointment_date.strftime("%Y-%m-%d")
+            elif isinstance(appointment_date, str):
+                appointment_date_str = appointment_date
+
+            # Handle shift times
+            shift_start = booking.get("shift_start_time", "")
+            shift_end = booking.get("shift_end_time", "")
+            time_shift = f"{shift_start} - {shift_end}" if shift_start and shift_end else "N/A"
+
+            payment_method = booking.get("payment_method", "Not Provided")
+
+            results.append({
+                "request_id": str(booking["_id"]),
+                "provider_id": provider_id,
+                "provider_name": provider_name,
+                "requested_service": booking.get("description", ""),
+                "appointment_date": appointment_date_str,
+                "time_shift": time_shift,
+                "payment_method": payment_method,
+                "status": booking.get("status", "")
+            })
+
+        return Response(results, status=status.HTTP_200_OK)
+
+# -------------------------Admin Management-------------------------
 class AdminProviderView(APIView):
+    """
+    API endpoint for admin to manage service providers.
+    """
     permission_classes = [IsAdmin];
     
     def post(self, request):
@@ -463,8 +518,10 @@ class AdminProviderView(APIView):
         else:
             return Response({"message": "Provider not found! or no changes were made!"}, status=status.HTTP_400_BAD_REQUEST)
 
-
 class AdminRequestsView(APIView):
+    """
+    API endpoint for admin to view all service requests.
+    """
     permission_classes = [IsAdmin]
     
     def get(self, request):
@@ -475,9 +532,11 @@ class AdminRequestsView(APIView):
             request_list.append(req)
         return Response(request_list, status=status.HTTP_200_OK)
         
-
-
+# -------------------------Bill Generation-------------------------
 class BillGeneration(APIView):
+    """
+    API endpoint for generating bills for service requests.
+    """
     permission_classes = []
 
     def post(self, request):
@@ -529,9 +588,11 @@ class BillGeneration(APIView):
             "bill_id": str(result.inserted_id)
         }, status=status.HTTP_201_CREATED)
 
-
-# servicebuddy_app/views.py (add this)
+# -------------------------Token Management-------------------------
 class RefreshTokenView(APIView):
+    """
+    API endpoint to refresh access tokens using refresh tokens.
+    """
     authentication_classes = []  # No authentication required for this endpoint.
     permission_classes = []
 
@@ -556,56 +617,11 @@ class RefreshTokenView(APIView):
         new_access_token = jwt.encode(new_payload, settings.SECRET_KEY, algorithm="HS256")
         return Response({"access": new_access_token}, status=status.HTTP_200_OK)
 
-class MyBookings(APIView):
-    permission_classes = [IsUser]
-
-    def get(self, request):
-        user_id = request.user.get("user_id")
-        if not user_id:
-            return Response({"error": "User not found in token."}, status=status.HTTP_400_BAD_REQUEST)
-
-        bookings = list(MONGO_DB.service_requests.find({"user_id": user_id}))
-        results = []
-
-        for booking in bookings:
-            provider_id = booking.get("provider_id")
-            try:
-                provider = MONGO_DB.providers.find_one({"_id": ObjectId(provider_id)})
-            except Exception:
-                provider = None
-            provider_name = provider["name"] if provider and "name" in provider else "Unknown"
-
-            # Format appointment date
-            appointment_date = booking.get("appointment_date")
-            appointment_date_str = ""
-            if isinstance(appointment_date, datetime):
-                appointment_date_str = appointment_date.strftime("%Y-%m-%d")
-            elif isinstance(appointment_date, str):
-                appointment_date_str = appointment_date
-
-            # Handle shift times
-            shift_start = booking.get("shift_start_time", "")
-            shift_end = booking.get("shift_end_time", "")
-            time_shift = f"{shift_start} - {shift_end}" if shift_start and shift_end else "N/A"
-
-            payment_method = booking.get("payment_method", "Not Provided")
-
-            results.append({
-                "request_id": str(booking["_id"]),
-                "provider_id": provider_id,
-                "provider_name": provider_name,
-                "requested_service": booking.get("description", ""),
-                "appointment_date": appointment_date_str,
-                "time_shift": time_shift,
-                "payment_method": payment_method,
-                "status": booking.get("status", "")
-            })
-
-        return Response(results, status=status.HTTP_200_OK)
-
-
-
+# -------------------------Password Management-------------------------
 class RequestPasswordResetView(APIView):
+    """
+    API endpoint to request a password reset link.
+    """   
     # Allow unauthenticated access
     authentication_classes = []
     permission_classes = []
@@ -634,6 +650,9 @@ class RequestPasswordResetView(APIView):
         return Response({"message": "Password reset link sent to your email."}, status=status.HTTP_200_OK)
     
 class PasswordResetConfirmView(APIView):
+    """
+    API endpoint to confirm password reset using the token.
+    """
     authentication_classes = []
     permission_classes = []
 
@@ -659,23 +678,87 @@ class PasswordResetConfirmView(APIView):
         else:
             return Response({"error": "Failed to reset password."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-class ProviderDashboardSummaryView(APIView):
-    permission_classes = [IsProvider]
-
+# -------------------------Profile Management-------------------------
+class ProfileView(APIView):
+    """
+    API endpoint for users and providers to view and update their profiles.
+    """
+    permission_classes = [IsAdmin | IsUser | IsProvider]
+    parser_classes = [MultiPartParser, FormParser]  # ✅ Add this to support file uploads
+    
     def get(self, request):
-        provider_id = request.user.get("user_id")
-        if not provider_id:
-            return Response({"error": "Provider not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+        user_id = request.user.get("user_id")
+        if not user_id:
+            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        total_requests = MONGO_DB.service_requests.count_documents({"provider_id": provider_id})
-        jobs_completed = MONGO_DB.service_requests.count_documents({"provider_id": provider_id, "status": "Completed"})
-        jobs_in_progress = MONGO_DB.service_requests.count_documents({"provider_id": provider_id, "status": "In Progress"})
-        jobs_not_completed = MONGO_DB.service_requests.count_documents({"provider_id": provider_id, "status": "Not Completed"})
+        user = MONGO_DB.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response({
-            "total_requests": total_requests,
-            "jobs_completed": jobs_completed,
-            "jobs_in_progress": jobs_in_progress,
-            "jobs_not_completed": jobs_not_completed
-        }, status=status.HTTP_200_OK)
+        user["_id"] = str(user["_id"])
+        return Response(user, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = request.user
+        data = request.data
+
+        print("FILES:", request.FILES)
+        print("DATA:", request.data)
+
+        if isinstance(user, dict):
+            user_id = user.get("_id") or user.get("id") or user.get("user_id")
+        else:
+            user_id = getattr(user, "id", None)
+
+        try:
+            user_obj_id = ObjectId(user_id)
+        except Exception as e:
+            print("Invalid ObjectId:", e)
+            return Response({"error": "Invalid user ID"}, status=400)
+
+        update_fields = {
+            "name": data.get("name"),
+            "email": data.get("email"),
+            "phone_num": data.get("phone_num"),
+            "location": data.get("location"),
+        }
+
+        profile_picture = request.FILES.get("profile_picture")
+        if profile_picture:
+            file_name = f"profile_pics/{profile_picture.name}"
+            fs = FileSystemStorage()
+            file_path = fs.save(file_name, ContentFile(profile_picture.read()))
+            
+            # Generate full URL including hostname
+            image_url = request.build_absolute_uri(settings.MEDIA_URL + file_path)
+            update_fields["profile_picture"] = image_url
+            print("Set profile picture URL:", image_url)
+
+        update_fields = {k: v for k, v in update_fields.items() if v is not None}
+
+        print("User Object ID:", user_obj_id)
+        print("User Type:", user.get("user_type"))
+        print("Update Fields:", update_fields)
+
+        if update_fields:
+            if user.get("user_type") == "provider":
+                collection = MONGO_DB.providers
+            else:
+                collection = MONGO_DB.users
+
+            collection.update_one({"_id": user_obj_id}, {"$set": update_fields})
+            
+            # Get updated user to verify changes
+            updated_user = collection.find_one({"_id": user_obj_id})
+            print("Updated user document:", updated_user)
+            
+            # Clean up _id for response
+            if updated_user:
+                updated_user["_id"] = str(updated_user["_id"])
+                # Return the full updated user object
+                return Response(updated_user, status=status.HTTP_200_OK)
+            
+            return Response({"message": "Profile updated"}, status=status.HTTP_200_OK)
+
+        print("FAILED TO UPDATE PROFILE")
+        return Response({"error": "Invalid update"}, status=status.HTTP_400_BAD_REQUEST)

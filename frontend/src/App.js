@@ -21,6 +21,7 @@ import ToastProvider from './components/common/ToastProvider';
 import AboutUs from './components/AboutUs';
 import ContactPage from './components/ContactPage';
 import ProviderSchedule from './components/providers/ProviderSchedule';
+import ProfilePage from './components/ProfilePage';
 
 import './App.css';
 
@@ -38,6 +39,7 @@ function App() {
           <Route path="/aboutus" element={<AboutUs />} />
           <Route path="/contact" element={<ContactPage />} />
           
+          
 
           {/* Protected Routes */}
           <Route path="/providers" element={<ProviderList />} />
@@ -47,6 +49,7 @@ function App() {
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/provider-requests" element={<ProviderRequests />} />
           <Route path="/provider-schedule" element={<ProviderSchedule />} />
+          <Route path="/profile" element={<ProfilePage />} />
 
           {/* Provider Protected Route */}
           <Route element={<ProviderRoute />}>

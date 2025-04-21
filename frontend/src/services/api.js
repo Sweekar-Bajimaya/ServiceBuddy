@@ -93,3 +93,16 @@ export const updateBookingStatus = (requestId, status) =>
 export const getProviderDashboardSummary = () => {
   return API.get("/provider/dashboard-summary/");
 };
+
+// Fetch profile
+export const getProfile = () => API.get('/profile/');
+
+// Update profile info
+export const updateProfile = (formData) => {
+  return API.post("/profile/", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+

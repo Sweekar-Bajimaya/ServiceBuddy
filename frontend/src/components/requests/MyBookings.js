@@ -9,11 +9,13 @@ import {
   TableCell,
   Paper,
   TableContainer,
+  CircularProgress,
 } from "@mui/material";
 import { getMyBookings } from "../../services/api";
 import Navbar from "../common/Navbar";
 
 const MyBookings = () => {
+  const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
 
   const fetchBookings = async () => {
@@ -25,12 +27,22 @@ const MyBookings = () => {
       setBookings(sorted);
     } catch (err) {
       console.error("Failed to fetch bookings:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchBookings();
   }, []);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <>

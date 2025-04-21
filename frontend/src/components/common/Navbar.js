@@ -247,6 +247,11 @@ const Navbar = ({ transparent = true }) => {
     navigate("/my-bookings");
   };
 
+  const handleProfile = () => {
+    handleMenuClose();
+    navigate("/profile");
+  };
+
   const handleNotifOpen = (event) => {
     setNotifAnchorEl(event.currentTarget);
   };
@@ -403,7 +408,14 @@ const Navbar = ({ transparent = true }) => {
             {user ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <IconButton onClick={handleMenuOpen} size="large" sx={{ p: 0 }}>
-                  <Avatar alt={user.name} src={user.avatar || ""} />
+                <Avatar 
+                  alt={user?.name} 
+                  src={user?.profile_picture || "/default-avatar.png"} 
+                  onError={(e) => {
+                    console.log("Failed to load image:", e.target.src);
+                    e.target.src = "/default-avatar.png";
+                  }}
+                />
                 </IconButton>
                 <Typography
                   variant="body1"
@@ -420,6 +432,7 @@ const Navbar = ({ transparent = true }) => {
                   anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
                   transformOrigin={{ vertical: "top", horizontal: "right" }}
                 >
+                  <MenuItem onClick={handleProfile}>My Profile</MenuItem>
                   <MenuItem onClick={handleMyBookings}>My Bookings</MenuItem>
                   <MenuItem onClick={handleLogout}>Logout</MenuItem>
                 </Menu>

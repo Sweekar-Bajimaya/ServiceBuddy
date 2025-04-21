@@ -63,7 +63,7 @@ const Sidebar = () => {
               </ListItemButton>
             </ListItem>
 
-            <ListItem disablePadding>
+            {/* <ListItem disablePadding>
               <ListItemButton>
                 <ListItemIcon>
                   <HistoryIcon />
@@ -79,7 +79,7 @@ const Sidebar = () => {
                 </ListItemIcon>
                 <ListItemText primary="Message" />
               </ListItemButton>
-            </ListItem>
+            </ListItem> */}
           </>
         )}
 
@@ -113,14 +113,14 @@ const Sidebar = () => {
               </ListItemButton>
             </ListItem>
 
-            <ListItem disablePadding>
+            {/* <ListItem disablePadding>
               <ListItemButton component={Link} to="/service-requests">
                 <ListItemIcon>
                   <ServiceRequestsIcon />
                 </ListItemIcon>
                 <ListItemText primary="Service Requests" />
               </ListItemButton>
-            </ListItem>
+            </ListItem> */}
           </>
         )}
 

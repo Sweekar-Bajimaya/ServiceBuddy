@@ -3,6 +3,7 @@ from django.core.validators import RegexValidator
 from .db import MONGO_DB
 from django.contrib.auth.hashers import make_password
 from datetime import datetime
+from django.core.exceptions import ValidationError
 
 phone_regex = RegexValidator(
     regex=r'^\+?1?\d{9,15}$',
@@ -10,10 +11,16 @@ phone_regex = RegexValidator(
 )
 
 class TimeShiftSerializer(serializers.Serializer):
+    """"
+    Serializer for time shifts.
+    """
     start_time = serializers.TimeField(required=True)
     end_time = serializers.TimeField(required=True)
 
 class RegisterSerializer(serializers.Serializer):
+    """
+    Serializer for user registration.
+    """
     name = serializers.CharField(max_length=100)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
@@ -22,6 +29,7 @@ class RegisterSerializer(serializers.Serializer):
     user_type = serializers.CharField(default="user")  # Defaults to "user" if not provided
     services_offered = serializers.ListField(child=serializers.CharField(max_length=100), required=False)
     available_time = serializers.ListField(child=TimeShiftSerializer(), required=False)
+    profile_picture = serializers.ImageField(required=False)  # Add profile picture field
 
     def validate(self, data):
         """
@@ -68,6 +76,9 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class LoginSerializer(serializers.Serializer):
+    """
+    Serializer for user login.
+    """
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     user_type = serializers.ChoiceField(
@@ -85,9 +96,15 @@ class LoginSerializer(serializers.Serializer):
         return data
     
 class AddServiceSerializer(serializers.Serializer):
+    """
+    Serializer for adding a service to a provider's profile.
+    """
     service = serializers.CharField(max_length=100)
     
 class ServiceRequestSerializer(serializers.Serializer):
+    """
+    Serializer for service requests.
+    """
     provider_id = serializers.CharField()
     description = serializers.CharField(allow_blank=True, required=False)
     appointment_date = serializers.DateField(required=True, allow_null=True)

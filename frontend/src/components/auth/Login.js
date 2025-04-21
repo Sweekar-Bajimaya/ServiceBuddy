@@ -53,7 +53,14 @@ const Login = () => {
 
     try {
       const res = await loginUser(loginData);
-      login(res.data.user, res.data.access);
+      console.log("🔐 Login response:", res.data);
+      const normalizedUser = {
+        ...res.data.user,
+        id: res.data.user.user_id, // remap user_id → id
+        profile_picture: res.data.user.profile_picture || null,
+      };
+      
+      login(normalizedUser, res.data.access);
 
       if (isAdmin) {
         navigate("/admin-dashboard"); // Redirect to Admin Dashboard
