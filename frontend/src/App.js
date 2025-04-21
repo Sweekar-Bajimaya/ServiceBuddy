@@ -22,6 +22,7 @@ import AboutUs from './components/AboutUs';
 import ContactPage from './components/ContactPage';
 import ProviderSchedule from './components/providers/ProviderSchedule';
 import ProfilePage from './components/ProfilePage';
+import ProviderProfilePage from './components/providers/ProviderProfilePage';
 
 import './App.css';
 
@@ -50,6 +51,7 @@ function App() {
           <Route path="/provider-requests" element={<ProviderRequests />} />
           <Route path="/provider-schedule" element={<ProviderSchedule />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/provider-profile" element={<ProviderProfilePage />} />
 
           {/* Provider Protected Route */}
           <Route element={<ProviderRoute />}>

@@ -18,6 +18,7 @@ import os
 from django.core.files.storage import FileSystemStorage
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+import json
 
 # -------------------------Register, Login, Verify Email-------------------------
 class RegisterView(APIView):
@@ -679,19 +680,109 @@ class PasswordResetConfirmView(APIView):
             return Response({"error": "Failed to reset password."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # -------------------------Profile Management-------------------------
+
+# This is working for user only.
+# class ProfileView(APIView):
+#     """
+#     API endpoint for users and providers to view and update their profiles.
+#     """
+#     permission_classes = [IsAdmin | IsUser | IsProvider]
+#     parser_classes = [MultiPartParser, FormParser]  # ✅ Add this to support file uploads
+    
+#     def get(self, request):
+#         user_id = request.user.get("user_id")
+#         if not user_id:
+#             return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+
+#         user = MONGO_DB.users.find_one({"_id": ObjectId(user_id)})
+#         if not user:
+#             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+#         user["_id"] = str(user["_id"])
+#         return Response(user, status=status.HTTP_200_OK)
+
+#     def post(self, request):
+#         user = request.user
+#         data = request.data
+
+#         print("FILES:", request.FILES)
+#         print("DATA:", request.data)
+
+#         if isinstance(user, dict):
+#             user_id = user.get("_id") or user.get("id") or user.get("user_id")
+#         else:
+#             user_id = getattr(user, "id", None)
+
+#         try:
+#             user_obj_id = ObjectId(user_id)
+#         except Exception as e:
+#             print("Invalid ObjectId:", e)
+#             return Response({"error": "Invalid user ID"}, status=400)
+
+#         update_fields = {
+#             "name": data.get("name"),
+#             "email": data.get("email"),
+#             "phone_num": data.get("phone_num"),
+#             "location": data.get("location"),
+#         }
+
+#         profile_picture = request.FILES.get("profile_picture")
+#         if profile_picture:
+#             file_name = f"profile_pics/{profile_picture.name}"
+#             fs = FileSystemStorage()
+#             file_path = fs.save(file_name, ContentFile(profile_picture.read()))
+            
+#             # Generate full URL including hostname
+#             image_url = request.build_absolute_uri(settings.MEDIA_URL + file_path)
+#             update_fields["profile_picture"] = image_url
+#             print("Set profile picture URL:", image_url)
+
+#         update_fields = {k: v for k, v in update_fields.items() if v is not None}
+
+#         print("User Object ID:", user_obj_id)
+#         print("User Type:", user.get("user_type"))
+#         print("Update Fields:", update_fields)
+
+#         if update_fields:
+#             if user.get("user_type") == "provider":
+#                 collection = MONGO_DB.providers
+#             else:
+#                 collection = MONGO_DB.users
+
+#             collection.update_one({"_id": user_obj_id}, {"$set": update_fields})
+            
+#             # Get updated user to verify changes
+#             updated_user = collection.find_one({"_id": user_obj_id})
+#             print("Updated user document:", updated_user)
+            
+#             # Clean up _id for response
+#             if updated_user:
+#                 updated_user["_id"] = str(updated_user["_id"])
+#                 # Return the full updated user object
+#                 return Response(updated_user, status=status.HTTP_200_OK)
+            
+#             return Response({"message": "Profile updated"}, status=status.HTTP_200_OK)
+
+#         print("FAILED TO UPDATE PROFILE")
+#         return Response({"error": "Invalid update"}, status=status.HTTP_400_BAD_REQUEST)
+
+#for both users and providers
 class ProfileView(APIView):
-    """
-    API endpoint for users and providers to view and update their profiles.
-    """
     permission_classes = [IsAdmin | IsUser | IsProvider]
-    parser_classes = [MultiPartParser, FormParser]  # ✅ Add this to support file uploads
+    parser_classes = [MultiPartParser, FormParser]
     
     def get(self, request):
         user_id = request.user.get("user_id")
         if not user_id:
             return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        user = MONGO_DB.users.find_one({"_id": ObjectId(user_id)})
+        # Determine collection based on user type
+        if request.user.get("user_type") == "provider":
+            collection = MONGO_DB.providers
+        else:
+            collection = MONGO_DB.users
+
+        user = collection.find_one({"_id": ObjectId(user_id)})
         if not user:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -716,6 +807,7 @@ class ProfileView(APIView):
             print("Invalid ObjectId:", e)
             return Response({"error": "Invalid user ID"}, status=400)
 
+        # Basic fields common to both users and providers
         update_fields = {
             "name": data.get("name"),
             "email": data.get("email"),
@@ -723,17 +815,59 @@ class ProfileView(APIView):
             "location": data.get("location"),
         }
 
+        # Handle profile picture
         profile_picture = request.FILES.get("profile_picture")
         if profile_picture:
             file_name = f"profile_pics/{profile_picture.name}"
             fs = FileSystemStorage()
             file_path = fs.save(file_name, ContentFile(profile_picture.read()))
-            
-            # Generate full URL including hostname
             image_url = request.build_absolute_uri(settings.MEDIA_URL + file_path)
             update_fields["profile_picture"] = image_url
             print("Set profile picture URL:", image_url)
 
+        # Provider-specific fields
+        if user.get("user_type") == "provider":
+            # Handle available_time if provided
+            available_time = data.get("available_time")
+            if available_time:
+                try:
+                    # If available_time is a string (JSON), parse it
+                    if isinstance(available_time, str):
+                        available_time = json.loads(available_time)
+                    update_fields["available_time"] = available_time
+                except Exception as e:
+                    print("Error parsing available time:", e)
+                    return Response({"error": "Invalid available time format"}, status=400)
+
+            # Handle services_offered if provided
+            services_offered = data.get("services_offered")
+            if services_offered:
+                try:
+                    # Debug log
+                    print("Services offered received:", services_offered, type(services_offered))
+                    # If services_offered is a string (JSON), parse it
+                    if isinstance(services_offered, str):
+                        services_offered = json.loads(services_offered)
+                    update_fields["services_offered"] = services_offered
+                    
+                    # Debug log
+                    print("Processed services_offered:", update_fields["services_offered"])     
+                               
+                except Exception as e:
+                    print("Error parsing services offered:", e)
+                    return Response({"error": "Invalid services offered format"}, status=400)
+                
+            # Handle experience if provided
+            experience = data.get("experience")
+            if experience:
+                update_fields["experience"] = experience
+                
+            # Handle rate_per_hour if provided
+            rate_per_hour = data.get("rate_per_hour")
+            if rate_per_hour:
+                update_fields["rate_per_hour"] = rate_per_hour
+
+        # Remove None values
         update_fields = {k: v for k, v in update_fields.items() if v is not None}
 
         print("User Object ID:", user_obj_id)
@@ -752,10 +886,8 @@ class ProfileView(APIView):
             updated_user = collection.find_one({"_id": user_obj_id})
             print("Updated user document:", updated_user)
             
-            # Clean up _id for response
             if updated_user:
                 updated_user["_id"] = str(updated_user["_id"])
-                # Return the full updated user object
                 return Response(updated_user, status=status.HTTP_200_OK)
             
             return Response({"message": "Profile updated"}, status=status.HTTP_200_OK)

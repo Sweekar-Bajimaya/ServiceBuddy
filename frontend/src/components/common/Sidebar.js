@@ -125,7 +125,7 @@ const Sidebar = () => {
         )}
 
         <ListItem disablePadding>
-          <ListItemButton>
+          <ListItemButton component={Link} to="/provider-profile">
             <ListItemIcon>
               <ProfileIcon />
             </ListItemIcon>
