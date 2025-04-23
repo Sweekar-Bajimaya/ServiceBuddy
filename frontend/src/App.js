@@ -23,6 +23,8 @@ import ContactPage from './components/ContactPage';
 import ProviderSchedule from './components/providers/ProviderSchedule';
 import ProfilePage from './components/ProfilePage';
 import ProviderProfilePage from './components/providers/ProviderProfilePage';
+import ReviewForm from './components/common/ReviewForm';
+import ProviderReviews from './components/providers/ProviderReviews';
 
 import './App.css';
 
@@ -52,6 +54,8 @@ function App() {
           <Route path="/provider-schedule" element={<ProviderSchedule />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/provider-profile" element={<ProviderProfilePage />} />
+          <Route path="/review-form" element={<ReviewForm />} />
+          <Route path="/provider-reviews" element={<ProviderReviews />} />
 
           {/* Provider Protected Route */}
           <Route element={<ProviderRoute />}>

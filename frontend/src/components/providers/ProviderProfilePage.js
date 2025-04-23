@@ -436,7 +436,7 @@ const ProviderProfilePage = () => {
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <TextField
-                        label="Hourly Rate ($)"
+                        label="Hourly Rate (रु)"
                         name="rate_per_hour"
                         type="number"
                         value={formData.rate_per_hour || ""}
@@ -449,14 +449,14 @@ const ProviderProfilePage = () => {
                 </CardContent>
               </Card>
 
-              <Card elevation={2} sx={{ p: 2, mt: 3 }}>
+              {/* <Card elevation={2} sx={{ p: 2, mt: 3 }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
                     Services Offered
-                  </Typography>
+                  </Typography> */}
 
                   {/* Current Services */}
-                  <Box sx={{ mb: 3 }}>
+                  {/* <Box sx={{ mb: 3 }}>
                     <Typography variant="subtitle1" gutterBottom>
                       Current Services
                     </Typography>
@@ -476,10 +476,10 @@ const ProviderProfilePage = () => {
                         ))}
                       </Box>
                     )}
-                  </Box>
+                  </Box> */}
 
                   {/* Add New Service */}
-                  <Typography variant="subtitle1" gutterBottom>
+                  {/* <Typography variant="subtitle1" gutterBottom>
                     Add New Service
                   </Typography>
                   <Grid container spacing={2} alignItems="center">
@@ -509,8 +509,8 @@ const ProviderProfilePage = () => {
                       </Button>
                     </Grid>
                   </Grid>
-                </CardContent>
-              </Card>
+                </CardContent> */}
+              {/* </Card> */}
 
               <Card elevation={2} sx={{ p: 2, mt: 3 }}>
                 <CardContent>

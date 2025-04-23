@@ -32,4 +32,9 @@ urlpatterns = [
     
     #--------------------Profile Views--------------------
     path("profile/", ProfileView.as_view(), name="profile"),
+    
+    #--------------------Review Views--------------------
+    path('reviews/', ReviewCreateView.as_view(), name='reviews'),
+    path('reviews/<str:provider_id>/', ProviderReviewListView.as_view(), name='review_detail'),
+    path('reviewlist/', ReviewListView.as_view(), name='review_list'),
 ]

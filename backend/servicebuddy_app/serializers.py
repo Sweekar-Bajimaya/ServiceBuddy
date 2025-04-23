@@ -112,3 +112,14 @@ class ServiceRequestSerializer(serializers.Serializer):
     shift_end_time = serializers.CharField()
     location = serializers.CharField(required = True)
     payment_method = serializers.ChoiceField(choices=['Cash', 'Online'], required = True)
+    
+class ReviewSerializer(serializers.Serializer):
+    """
+    Serializer for adding a review to a provider's profile.
+    """
+    provider_id = serializers.CharField()
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    review = serializers.CharField(allow_blank=True, required=False)  # Optional comment field
+    user_id = serializers.CharField(required=True)  # User ID of the user giving the review
+    user_name = serializers.CharField(required=True)  # Name of the user giving the review
+    profile_picture = serializers.ImageField(required=False)  # Profile picture of the user giving the review

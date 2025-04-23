@@ -106,3 +106,16 @@ export const updateProfile = (formData) => {
   });
 };
 
+// For fetching provider reviews
+export const getProviderReviews = (provider_id) => {
+  return API.get(`/reviews/${provider_id}/`);
+};
+
+// For submitting a new review
+export const submitReview = (reviewData) => {
+  return API.post('/reviews/', reviewData);
+};
+
+export const getReviewList = () => {
+  return API.get('/reviewlist/');
+};

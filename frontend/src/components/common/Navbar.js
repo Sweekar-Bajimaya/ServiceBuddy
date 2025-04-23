@@ -212,6 +212,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import { useTheme } from "@mui/material/styles";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
+import Logo from "../Images/Logo.png"; // Adjust the path as necessary
 
 const Navbar = ({ transparent = true }) => {
   const { user, logout } = useContext(AuthContext);
@@ -318,7 +319,11 @@ const Navbar = ({ transparent = true }) => {
         }}
       >
         <IconButton edge="start" color="inherit" sx={{ mr: 1 }}>
-          <ConstructionIcon />
+          <img
+            src={Logo} // or use require if from src: require("../assets/logo.png")
+            alt="ServiceBuddy Logo"
+            style={{ width: 48, height: 48 }}
+          />
         </IconButton>
         <Typography
           variant="h6"

@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import RegisterSerializer, LoginSerializer, ServiceRequestSerializer
+from .serializers import RegisterSerializer, LoginSerializer, ServiceRequestSerializer, ReviewSerializer
 from .db import MONGO_DB
 from .utils import generate_tokens, generate_reset_token, verify_reset_token
 from datetime import datetime
@@ -839,23 +839,23 @@ class ProfileView(APIView):
                     print("Error parsing available time:", e)
                     return Response({"error": "Invalid available time format"}, status=400)
 
-            # Handle services_offered if provided
-            services_offered = data.get("services_offered")
-            if services_offered:
-                try:
-                    # Debug log
-                    print("Services offered received:", services_offered, type(services_offered))
-                    # If services_offered is a string (JSON), parse it
-                    if isinstance(services_offered, str):
-                        services_offered = json.loads(services_offered)
-                    update_fields["services_offered"] = services_offered
+            # # Handle services_offered if provided
+            # services_offered = data.get("services_offered")
+            # if services_offered:
+            #     try:
+            #         # Debug log
+            #         print("Services offered received:", services_offered, type(services_offered))
+            #         # If services_offered is a string (JSON), parse it
+            #         if isinstance(services_offered, str):
+            #             services_offered = json.loads(services_offered)
+            #         update_fields["services_offered"] = services_offered
                     
-                    # Debug log
-                    print("Processed services_offered:", update_fields["services_offered"])     
+            #         # Debug log
+            #         print("Processed services_offered:", update_fields["services_offered"])     
                                
-                except Exception as e:
-                    print("Error parsing services offered:", e)
-                    return Response({"error": "Invalid services offered format"}, status=400)
+            #     except Exception as e:
+            #         print("Error parsing services offered:", e)
+            #         return Response({"error": "Invalid services offered format"}, status=400)
                 
             # Handle experience if provided
             experience = data.get("experience")
@@ -894,3 +894,117 @@ class ProfileView(APIView):
 
         print("FAILED TO UPDATE PROFILE")
         return Response({"error": "Invalid update"}, status=status.HTTP_400_BAD_REQUEST)
+    
+class ReviewCreateView(APIView):
+    """
+    API endpoint for users to create reviews for service providers.
+    """
+    permission_classes = [IsUser]
+
+    def post(self, request):
+        data = request.data
+        user_id = request.user.get("user_id")
+        if not user_id:
+            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Ensure required fields are present
+        required_fields = ["provider_id", "rating", "review"]
+        for field in required_fields:
+            if field not in data:
+                return Response({"error": f"{field} is required."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Get the latest user data to ensure we have the most recent profile picture
+        user_collection = MONGO_DB.users
+        user_data = user_collection.find_one({"_id": ObjectId(user_id)})
+        
+        # Create review document
+        review = {
+            "user_id": user_id,
+            "user_name": request.user.get("name", "Unknown"),
+            "provider_id": data["provider_id"],
+            "rating": data["rating"],
+            "review": data["review"],
+            "profile_picture": user_data.get("profile_picture") if user_data else request.user.get("profile_picture", None),
+            "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45),
+        }
+
+        # Insert review into MongoDB
+        result = MONGO_DB.reviews.insert_one(review)
+
+        return Response({
+            "message": "Review submitted successfully.",
+            "review_id": str(result.inserted_id)
+        }, status=status.HTTP_201_CREATED)
+        
+    def get(self, request):
+        # Fetch all reviews for the logged-in user
+        user_id = request.user.get("user_id")
+        if not user_id:
+            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        reviews = list(MONGO_DB.reviews.find({"user_id": user_id}).sort("created_at", -1))
+
+        # Convert ObjectId to string for better compatibility with frontend
+        for review in reviews:
+            review["_id"] = str(review["_id"])
+            review["provider_id"] = str(review["provider_id"])
+
+        return Response(reviews, status=status.HTTP_200_OK)
+    
+class ProviderReviewListView(APIView):
+    """
+    API endpoint for users to view reviews for a specific service provider.
+    """
+    permission_classes = [IsUser]
+
+    def get(self, request, provider_id):
+        if not provider_id:
+            return Response({"error": "Provider ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch reviews for the specified provider
+        reviews = list(MONGO_DB.reviews.find({"provider_id": provider_id}).sort("created_at", -1))
+
+        # Convert ObjectId to string for better compatibility with frontend
+        for review in reviews:
+            review["_id"] = str(review["_id"])
+            review["user_id"] = str(review["user_id"])
+            
+            # Make sure profile_picture is included in the response
+            if "profile_picture" not in review or not review["profile_picture"]:
+                # If no profile picture in review, try to fetch from user
+                user_data = MONGO_DB.users.find_one({"_id": ObjectId(review["user_id"])})
+                if user_data and "profile_picture" in user_data:
+                    review["profile_picture"] = user_data["profile_picture"]
+
+        return Response(reviews, status=status.HTTP_200_OK)
+
+class ReviewListView(APIView):
+    """
+    API endpoint for provider to view all reviews.
+    """
+    permission_classes = [IsProvider]
+    
+    def get(self, request):
+        provider_id = request.user.get("user_id")
+        if not provider_id:
+            return Response({"error": "Provider not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Fetch reviews for the specified provider
+        reviews = list(MONGO_DB.reviews.find({"provider_id": provider_id}).sort("created_at", -1))
+        
+        # Convert ObjectId to string for better compatibility with frontend
+        for review in reviews:
+            review["_id"] = str(review["_id"])
+            review["user_id"] = str(review["user_id"])
+            
+            # Make sure profile_picture is included in the response
+            if "profile_picture" not in review or not review["profile_picture"]:
+                # If no profile picture in review, try to fetch from user
+                try:
+                    user_data = MONGO_DB.users.find_one({"_id": ObjectId(review["user_id"])})
+                    if user_data and "profile_picture" in user_data:
+                        review["profile_picture"] = user_data["profile_picture"]
+                except Exception as e:
+                    print(f"Error fetching user profile: {e}")
+        
+        return Response(reviews, status=status.HTTP_200_OK)
