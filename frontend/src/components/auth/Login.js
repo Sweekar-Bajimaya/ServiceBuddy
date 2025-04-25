@@ -187,7 +187,7 @@ const Login = () => {
                 justifyContent="space-between"
                 flexWrap="wrap"
               >
-                <Link component={Link} to="/reset-password" underline="hover">
+                <Link component={Link} to="/forgot-password" underline="hover">
                   Forgot password?
                 </Link>
                 {/* Only show the registration link if the user type is "user" */}

@@ -5,9 +5,9 @@ urlpatterns = [
     #-------------------Authentication and Registration--------------------
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', LoginView.as_view(), name='login'),
-    path('password-reset/', RequestPasswordResetView.as_view(), name='password_reset'),
-    path('password-reset-confirm/', PasswordResetConfirmView.as_view(),name='password_reset_confirm'),
-    path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),
+    path('password-reset-request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('verify-otp/', VerifyOTPView.as_view(), name='verify-otp'),
     
     # --------------------User Views--------------------
     path('service-providers/', ServiceProviderList.as_view(), name='providers'),

@@ -19,10 +19,11 @@ API.interceptors.request.use(
   }
 );
 
-// Auth endpoints
+
 export const registerUser = (data) => API.post("/register/", data);
 export const loginUser = (data) => API.post("/login/", data);
 export const refreshAccessToken = (data) => API.post("/token/refresh/", data); // If implemented
+export const verifyOtp = (data) => API.post("/verify-otp/", data);
 
 // Providers endpoints
 export const getProviders = (params) =>
@@ -45,7 +46,7 @@ export const getMyBookings = () => API.get("/my-bookings/");
 // Notifications endpoint (example)
 export const getNotifications = () => API.get("/notifications/");
 
-export const forgotPassword = (data) => API.post("/password-reset/", data);
+export const forgotPassword = (data) => API.post("/password-reset-request/", data);
 
 export const resetPassword = (data) =>
   API.post("/password-reset-confirm/", data);

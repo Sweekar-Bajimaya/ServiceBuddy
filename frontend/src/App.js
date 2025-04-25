@@ -16,7 +16,6 @@ import ProviderRoute from './components/providers/ProviderRoute';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import AddProvider from './components/Admin/AddProvider';
 import AdminProvidersList from './components/Admin/AdminProviderList';
-import VerifyEmail from './components/auth/VerifyEmail';
 import ToastProvider from './components/common/ToastProvider';
 import AboutUs from './components/AboutUs';
 import ContactPage from './components/ContactPage';
@@ -25,7 +24,7 @@ import ProfilePage from './components/ProfilePage';
 import ProviderProfilePage from './components/providers/ProviderProfilePage';
 import ReviewForm from './components/common/ReviewForm';
 import ProviderReviews from './components/providers/ProviderReviews';
-
+import VerifyOTP from './components/auth/VerifyOTP';
 import './App.css';
 
 function App() {
@@ -38,11 +37,9 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/aboutus" element={<AboutUs />} />
           <Route path="/contact" element={<ContactPage />} />
-          
-          
+          <Route path="/verify-otp" element={<VerifyOTP />} />          
 
           {/* Protected Routes */}
           <Route path="/providers" element={<ProviderList />} />

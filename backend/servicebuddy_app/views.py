@@ -19,82 +19,114 @@ from django.core.files.storage import FileSystemStorage
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import json
+import random
 
 # -------------------------Register, Login, Verify Email-------------------------
 class RegisterView(APIView):
-    # Allow unauthenticated access
+    """
+    API endpoint for user registration.
+    """
     authentication_classes = []
     permission_classes = []
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)  # Validate input data
+        serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        # Check if the user already exists
         if MONGO_DB.users.find_one({"email": data["email"]}):
             return Response({"error": "Email already registered."}, status=status.HTTP_400_BAD_REQUEST)
 
-        verification_token = get_random_string(length=32)  # Generate a random verification token
-        # Create user data dictionary with 'is_verified' set to False initially
+        user_type = data["user_type"]
+        email = data["email"]
+
+        # Admin and Provider: Auto-verified, no OTP
+        if user_type == "provider" or email == "admin@servicebuddy.com":
+            user = {
+                "user_type": user_type,
+                "name": data["name"],
+                "email": email,
+                "password": make_password(data["password"]),
+                "location": data["location"],
+                "phone_num": data["phone_num"],
+                "is_verified": True,
+                "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
+            }
+
+            MONGO_DB.users.insert_one(user)
+            return Response({"message": f"{user_type.capitalize()} registered successfully without email verification."}, status=status.HTTP_201_CREATED)
+
+        # Normal User: OTP verification required
+        otp = str(random.randint(100000, 999999))
+
         user = {
-            "user_type": data["user_type"],
+            "user_type": user_type,
             "name": data["name"],
-            "email": data["email"],
-            "password": make_password(data["password"]),  # Hash the password
+            "email": email,
+            "password": make_password(data["password"]),
             "location": data["location"],
             "phone_num": data["phone_num"],
-            "is_verified": False,  # Default to False
-            "verification_token": verification_token,  # Store the verification token
+            "is_verified": False,
+            "otp": otp,
+            "otp_expiry": datetime.utcnow() + timedelta(minutes=5),
             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
         }
 
-        # Insert user into MongoDB with 'is_verified = False'
         result = MONGO_DB.users.insert_one(user)
-        user["_id"] = str(result.inserted_id)  # Convert ObjectId to string
+        user["_id"] = str(result.inserted_id)
 
-        # Send verification email with the token
-        verification_link = f"http://localhost:3000/verify-email?token={verification_token}"
         try:
             send_mail(
-                subject="Email Verification for ServiceBuddy",
-                message=f"Hi {user['name']},\n\nClick the link below to verify your email:\n{verification_link}\n\nIf you did not register, please ignore this email.", 
-                from_email=settings.EMAIL_HOST_USER,  # Use default email settings
-                recipient_list=[user["email"]]
+                subject="Your ServiceBuddy OTP Code",
+                message=f"Hi {user['name']},\n\nYour OTP code is: {otp}\nIt is valid for 5 minutes.\n\nIf you did not register, please ignore this email.",
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[email],
+                fail_silently=False,
             )
-            return Response({"message": "User registered successfully. Please check your email for verification."}, status=status.HTTP_201_CREATED)
+            return Response({"message": "User registered successfully. Please check your email for the OTP code."}, status=status.HTTP_201_CREATED)
         except Exception as e:
-            return Response({"error": "Error sending verification email.", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": "Error sending OTP email.", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class VerifyEmailView(APIView):
+class VerifyOTPView(APIView):
     """
-    Verify the user's email using the verification token.
+    API endpoint to verify OTP for email verification.
     """
     authentication_classes = []
     permission_classes = []
 
     def post(self, request):
-        # Try getting verification_token from query parameters or from the body
-        verification_token = request.data.get("token") or request.query_params.get("token")
+        email = request.data.get("email")
+        otp = request.data.get("otp")
+
+        if not email or not otp:
+            return Response({"error": "Email and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        record = MONGO_DB.users.find_one({"otp": otp, "email": email})
+
+        if not record:
+            return Response({"error": "OTP not found."}, status=status.HTTP_404_NOT_FOUND)
         
-        if not verification_token:
-            return Response({"error": "Verification token is required."}, status=status.HTTP_400_BAD_REQUEST)
+        # Ensure otp_expiry is a datetime object
+        otp_expiry = record.get("otp_expiry")
+        if isinstance(otp_expiry, str):
+            otp_expiry = datetime.fromisoformat(otp_expiry)
 
-        # Find user by verification token
-        user = MONGO_DB.users.find_one({"verification_token": verification_token})
-        if not user:
-            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+        if record["otp"] != otp:
+            return Response({"error": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Update user's verification status (only if they haven't already been verified)
-        if user.get("is_verified"):
-            return Response({"message": "Email is already verified."}, status=status.HTTP_400_BAD_REQUEST)
+        if datetime.utcnow() > otp_expiry:
+            return Response({"error": "OTP expired."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Update the user's status to verified
-        MONGO_DB.users.update_one({"_id": user["_id"]}, {"$set": {"is_verified": True}})
+        # Mark both OTP and user as verified
+        MONGO_DB.users.update_one({"email": email}, {"$set": {"is_verified": True}})
+        MONGO_DB.users.update_one({"email": email}, {"$set": {"is_verified": True}})
 
         return Response({"message": "Email verified successfully."}, status=status.HTTP_200_OK)
 
 class LoginView(APIView):
+    """
+    API endpoint for user login.
+    """
     authentication_classes = []
     permission_classes = []
 
@@ -129,6 +161,11 @@ class LoginView(APIView):
         # Check password validity
         if not check_password(password, user["password"]):
             return Response({"error": "Incorrect password"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Require email verification only for normal users
+        if user_type not in ["provider"] and email != "admin@servicebuddy.com":
+            if not user.get("is_verified", False):
+                return Response({"error": "Please verify your email before logging in."}, status=status.HTTP_403_FORBIDDEN)
 
         # Generate authentication tokens
         access, refresh = generate_tokens(user)
@@ -619,65 +656,88 @@ class RefreshTokenView(APIView):
         return Response({"access": new_access_token}, status=status.HTTP_200_OK)
 
 # -------------------------Password Management-------------------------
-class RequestPasswordResetView(APIView):
+class PasswordResetRequestView(APIView):
     """
-    API endpoint to request a password reset link.
-    """   
-    # Allow unauthenticated access
+    API endpoint to request a password reset using OTP.
+    """
     authentication_classes = []
     permission_classes = []
 
     def post(self, request):
         email = request.data.get("email")
+        user_type = request.data.get("user_type", "user")
+
         if not email:
             return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Find user by email (assuming they are stored in the "users" collection)
-        user = MONGO_DB.users.find_one({"email": email})
+        if user_type == "provider":
+            user = MONGO_DB.providers.find_one({"email": email})
+        else:
+            user = MONGO_DB.users.find_one({"email": email})
+
         if not user:
-            return Response({"error": "User with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Generate reset token
-        token = generate_reset_token(user)
+        otp = str(random.randint(100000, 999999))
+        expiry = datetime.utcnow() + timedelta(minutes=5)
 
-        # Construct password reset link (adjust the frontend URL accordingly)
-        reset_link = f"http://localhost:3000/reset-password?token={token}"
+        MONGO_DB.password_resets.update_one(
+            {"email": email},
+            {"$set": {"otp": otp, "expires_at": expiry, "user_type": user_type}},
+            upsert=True
+        )
 
-        # Send email
-        subject = "Password Reset Request for ServiceBuddy"
-        message = f"Hi {user['name']},\n\nClick the link below to reset your password:\n{reset_link}\n\nThis link expires in 30 minutes.\n\nIf you did not request a password reset, please ignore this email."
-        send_mail(subject, message, None, [email])
+        try:
+            send_mail(
+                subject="ServiceBuddy Password Reset Code",
+                message=f"Hi {user['name']},\n\nYour OTP for password reset is: {otp}\nIt will expire in 5 minutes.",
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+            return Response({"message": "Password reset OTP sent to email."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": "Failed to send OTP email.", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response({"message": "Password reset link sent to your email."}, status=status.HTTP_200_OK)
     
 class PasswordResetConfirmView(APIView):
     """
-    API endpoint to confirm password reset using the token.
+    API endpoint to confirm password reset using OTP.
     """
     authentication_classes = []
     permission_classes = []
 
     def post(self, request):
-        token = request.data.get("token")
+        email = request.data.get("email")
+        otp = request.data.get("otp")
         new_password = request.data.get("new_password")
-        if not token or not new_password:
-            return Response({"error": "Token and new_password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        payload = verify_reset_token(token)
-        if not payload:
-            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+        if not all([email, otp, new_password]):
+            return Response({"error": "Email, OTP, and new password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        user_id = payload.get("user_id")
-        # Update the user's password in MongoDB (ensure to hash it)
-        result = MONGO_DB.users.update_one(
-            {"_id": ObjectId(user_id)},
+        record = MONGO_DB.password_resets.find_one({"email": email})
+
+        if not record:
+            return Response({"error": "No reset request found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if record["otp"] != otp:
+            return Response({"error": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if datetime.utcnow() > record["expires_at"]:
+            return Response({"error": "OTP has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update the password
+        collection = MONGO_DB.providers if record["user_type"] == "provider" else MONGO_DB.users
+        collection.update_one(
+            {"email": email},
             {"$set": {"password": make_password(new_password)}}
         )
 
-        if result.modified_count:
-            return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
-        else:
-            return Response({"error": "Failed to reset password."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # Optionally delete used reset record
+        MONGO_DB.password_resets.delete_one({"email": email})
+
+        return Response({"message": "Password updated successfully."}, status=status.HTTP_200_OK)
+
 
 # -------------------------Profile Management-------------------------
 
