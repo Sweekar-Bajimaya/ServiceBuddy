@@ -10,22 +10,24 @@ import {
   Grid,
   ToggleButtonGroup,
   ToggleButton,
+  CircularProgress,
 } from "@mui/material";
-import { Person, Build } from "@mui/icons-material"; // Icons for User & Provider
+import { Person, Build, ShowChart } from "@mui/icons-material"; // Icons for User & Provider
 import { loginUser } from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
+import { useToast } from "../common/ToastProvider"; // Importing Toast Provider
 
 const Login = () => {
   const { login } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
+  const { showToast } = useToast(); // Using Toast Provider for notifications
   const navigate = useNavigate();
   const [form, setForm] = useState({
     email: "",
     password: "",
     user_type: "user",
   });
-  const [error, setError] = useState("");
-
   const isAdmin = form.email === "admin@servicebuddy.com"; // ✅ Check if logging in as Admin
 
   const handleChange = (e) => {
@@ -40,7 +42,8 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setLoading(true);
+
     let loginData = {
       email: form.email,
       password: form.password,
@@ -59,7 +62,7 @@ const Login = () => {
         id: res.data.user.user_id, // remap user_id → id
         profile_picture: res.data.user.profile_picture || null,
       };
-      
+
       login(normalizedUser, res.data.access);
 
       if (isAdmin) {
@@ -70,7 +73,9 @@ const Login = () => {
         navigate("/"); // Redirect to user home/dashboard
       }
     } catch (err) {
-      setError("Invalid credentials or server error");
+      showToast("Invalid credentials, Please Try Again!", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -174,10 +179,29 @@ const Login = () => {
                   onChange={handleChange}
                   required
                 />
-                {error && <Typography color="error">{error}</Typography>}
-                <Button variant="contained" type="submit" sx={{ mt: 2 }}>
-                  LOGIN
-                </Button>
+                
+                <Box sx={{ position: "relative", mt: 2 }}>
+                  <Button
+                    variant="contained"
+                    type="submit"
+                    disabled={loading}
+                    fullWidth
+                  >
+                    {loading ? "Logging in..." : "LOGIN"}
+                  </Button>
+                  {loading && (
+                    <CircularProgress
+                      size={24}
+                      sx={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        marginTop: "-12px",
+                        marginLeft: "-12px",
+                      }}
+                    />
+                  )}
+                </Box>
               </Box>
 
               {/* Links */}
