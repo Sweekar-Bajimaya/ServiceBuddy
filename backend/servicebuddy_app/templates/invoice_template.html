@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Service Invoice</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 1cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            font-size: 12px;
+        }
+        .invoice-box {
+            max-width: 800px;
+            margin: auto;
+            padding: 30px;
+            border: 1px solid #eee;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+            font-size: 14px;
+            line-height: 24px;
+        }
+        .invoice-header {
+            display: table;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .invoice-header .logo {
+            display: table-cell;
+            vertical-align: top;
+            width: 50%;
+        }
+        .invoice-header .company-info {
+            display: table-cell;
+            vertical-align: top;
+            text-align: right;
+        }
+        .logo h1 {
+            font-size: 28px;
+            color: #3498db;
+            margin: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        table th, table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        table th {
+            background-color: #f8f8f8;
+        }
+        .client-info {
+            display: table;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .provider-info, .user-info {
+            display: table-cell;
+            vertical-align: top;
+            width: 50%;
+        }
+        .user-info {
+            text-align: right;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #f8f8f8;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #777;
+            font-size: 12px;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        .bill-details {
+            margin-bottom: 20px;
+        }
+        .bill-details p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-box">
+        <div class="invoice-header">
+            <div class="logo">
+                <h1>ServiceBuddy</h1>
+                <p>Your Reliable Service Partner</p>
+            </div>
+            <div class="company-info">
+                <h2>INVOICE</h2>
+                <div class="bill-details">
+                    <p><strong>Bill ID:</strong> {{ bill.bill_id }}</p>
+                    <p><strong>Date:</strong> {{ bill.created_at|date:"F d, Y" }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="client-info">
+            <div class="provider-info">
+                <h3>Service Provider:</h3>
+                <p>{{ bill.provider_name }}</p>
+                <p>{{ bill.provider_email }}</p>
+            </div>
+            <div class="user-info">
+                <h3>Client:</h3>
+                <p>{{ bill.user_name }}</p>
+                <p>{{ bill.user_email }}</p>
+            </div>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Service Description</th>
+                    <th>Amount (NPR)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ bill.services_performed }}</td>
+                    <td>{{ bill.service_charge }}</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>Total</strong></td>
+                    <td><strong>NPR {{ bill.total }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div>
+            <p><strong>Payment Method:</strong> {{ bill.payment_method }}</p>
+        </div>
+        
+        <div class="footer">
+            <p>Thank you for choosing ServiceBuddy for your service needs!</p>
+            <p>For any inquiries, please contact us at support@servicebuddy.com</p>
+        </div>
+    </div>
+</body>
+</html>

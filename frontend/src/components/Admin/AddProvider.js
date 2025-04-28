@@ -104,7 +104,12 @@ const AddProvider = () => {
       });
       setTimeShifts([{ start_time: "", end_time: "" }]);
     } catch (err) {
-      showToast("Failed to add provider. Please try again.", "error");
+      // If the error response contains "Email already exists"
+      if (err.response && err.response.data.error === "Email already exists.") {
+        showToast("This email is already associated with another account.", "error");
+      } else {
+        showToast("Failed to add provider. Please try again.", "error");
+      }
     }
   };
 

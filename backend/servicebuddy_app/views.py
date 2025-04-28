@@ -11,15 +11,19 @@ import jwt
 from datetime import datetime, timedelta
 from django.conf import settings
 from .permissions import IsProvider, IsUser, IsAdmin  # Import your custom permissions
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMessage
 from django.utils.crypto import get_random_string
 from rest_framework.parsers import MultiPartParser, FormParser
-import os
+# import os
 from django.core.files.storage import FileSystemStorage
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import json
 import random
+from xhtml2pdf import pisa
+from django.template.loader import render_to_string
+from io import BytesIO
+from django.utils import timezone
 
 # -------------------------Register, Login, Verify Email-------------------------
 class RegisterView(APIView):
@@ -206,6 +210,10 @@ class AddServiceProviderView(APIView):
 
         print("DEBUG: Data before serializer:", data)  # Debugging
 
+        # Check if the email already exists
+        if MONGO_DB.providers.find_one({"email": data["email"]}):
+            return Response({"error": "Email already registered."}, status=status.HTTP_400_BAD_REQUEST)
+            
         serializer = RegisterSerializer(data=data)
         if serializer.is_valid():
             print("DEBUG: Validated data:", serializer.validated_data)  # Debugging
@@ -422,25 +430,164 @@ class ProviderScheduleView(APIView):
 
         return Response(bookings)
 
+# class UpdateBookingStatusView(APIView):
+#     """
+#     API endpoint for providers to update the status of a booking.
+#     """
+#     permission_classes = [IsProvider]
+#     def patch(self, request, request_id):
+#         new_status = request.data.get("status")
+#         if new_status not in ["In Progress", "Completed", "Not Completed"]:
+#             return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         result = MONGO_DB.service_requests.update_one(
+#             {"_id": ObjectId(request_id), "status": {"$in": ["accept", "In Progress"]}},
+#             {"$set": {"status": new_status}}
+#         )
+
+#         if result.matched_count == 0:
+#             return Response({"error": "Booking not found or not eligible for update"}, status=status.HTTP_404_NOT_FOUND)
+
+#         return Response({"message": "Status updated successfully"}, status=status.HTTP_200_OK)
+
 class UpdateBookingStatusView(APIView):
     """
     API endpoint for providers to update the status of a booking.
     """
     permission_classes = [IsProvider]
+    
     def patch(self, request, request_id):
         new_status = request.data.get("status")
         if new_status not in ["In Progress", "Completed", "Not Completed"]:
             return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Find the service request first to get details
+        service_request = MONGO_DB.service_requests.find_one({"_id": ObjectId(request_id)})
+        if not service_request:
+            return Response({"error": "Booking not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+        # Update the status
         result = MONGO_DB.service_requests.update_one(
             {"_id": ObjectId(request_id), "status": {"$in": ["accept", "In Progress"]}},
             {"$set": {"status": new_status}}
         )
 
         if result.matched_count == 0:
-            return Response({"error": "Booking not found or not eligible for update"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Booking not eligible for update"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # If status changed to Completed, generate bill automatically
+        if new_status == "Completed":
+            try:
+                # Get user and provider information
+                user = MONGO_DB.users.find_one({"_id": ObjectId(service_request["user_id"])})
+                provider = MONGO_DB.providers.find_one({"_id": ObjectId(service_request["provider_id"])})
+                
+                if not user or not provider:
+                    return Response({"error": "User or Provider not found."}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Calculate service charge based on service duration
+                # This is a placeholder calculation - modify as needed
+                # For example, you might want to use the provider's hourly rate
+                service_charge = 1000  # Default value
+                
+                # Generate bill ID with random string
+                from django.utils.crypto import get_random_string
+                bill_id = f"BILL-{timezone.now().strftime('%Y%m%d')}-{get_random_string(6).upper()}"
+                
+                # Create bill data
+                bill = {
+                    "bill_id": bill_id,
+                    "request_id": str(request_id),
+                    "user_id": service_request["user_id"],
+                    "user_name": user["name"],
+                    "user_email": user["email"],
+                    "provider_id": service_request["provider_id"],
+                    "provider_name": provider["name"],
+                    "provider_email": provider["email"],
+                    "services_performed": service_request.get("description", ""),
+                    "service_charge": service_charge,
+                    "total": service_charge,  # You might want to add tax or other fees
+                    "payment_method": service_request.get("payment_method", "Cash"),
+                    "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
+                }
+                
+                # Save bill in database
+                MONGO_DB.bills.insert_one(bill)
+                
+                # Generate PDF
+                pdf_file = self.generate_bill_pdf(bill)
+                if pdf_file:
+                    # Send Email
+                    self.send_bill_email(bill, pdf_file)
+            except Exception as e:
+                # Log the error but don't prevent the status update
+                print(f"Error generating bill: {str(e)}")
+                # Continue with the response instead of failing
 
         return Response({"message": "Status updated successfully"}, status=status.HTTP_200_OK)
+    
+    def generate_bill_pdf(self, bill_data):
+        """
+        Generate PDF for the bill.
+        """
+        from django.template.loader import render_to_string
+        from io import BytesIO
+        from xhtml2pdf import pisa
+        
+        template_path = 'invoice_template.html'
+        context = {'bill': bill_data}
+        
+        try:
+            html = render_to_string(template_path, context)
+            result = BytesIO()
+            pisa_status = pisa.CreatePDF(html, dest=result)
+            if pisa_status.err:
+                print(f"PDF generation error: {pisa_status.err}")
+                return None
+            return result
+        except Exception as e:
+            print(f"Error in generate_bill_pdf: {str(e)}")
+            return None
+
+    def send_bill_email(self, bill, pdf_data):
+        """
+        Send the bill PDF to user and provider via email.
+        """
+        from django.core.mail import EmailMessage
+        from django.conf import settings
+        
+        try:
+            subject = f"ServiceBuddy Bill - {bill['bill_id']}"
+            body = f"""
+            Dear {bill['user_name']},
+            
+            Thank you for using ServiceBuddy. Your service request has been completed.
+            
+            Please find attached the bill for the services performed. 
+            
+            Bill ID: {bill['bill_id']}
+            Service: {bill['services_performed']}
+            Total Amount: NPR {bill['total']}
+            
+            If you have any questions about this bill, please contact us.
+            
+            Regards,
+            ServiceBuddy Team
+            """
+            
+            email = EmailMessage(
+                subject,
+                body,
+                settings.EMAIL_HOST_USER,
+                [bill["user_email"], bill["provider_email"]]
+            )
+            
+            email.attach(f"bill_{bill['bill_id']}.pdf", pdf_data.getvalue(), 'application/pdf')
+            email.send()
+            return True
+        except Exception as e:
+            print(f"Error in send_bill_email: {str(e)}")
+            return False
 
 class ProviderDashboardSummaryView(APIView):
     """
@@ -573,58 +720,97 @@ class AdminRequestsView(APIView):
 # -------------------------Bill Generation-------------------------
 class BillGeneration(APIView):
     """
-    API endpoint for generating bills for service requests.
+    API endpoint for generating bills for service requests and emailing them.
     """
-    permission_classes = []
+    permission_classes = [IsProvider]
 
     def post(self, request):
         data = request.data
 
-        # Ensure request_id exists
         if "request_id" not in data:
             return Response({"error": "request_id is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            request_id = ObjectId(data["request_id"])  # Convert request_id to ObjectId
+            request_id = ObjectId(data["request_id"])
         except:
             return Response({"error": "Invalid request_id format."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Fetch the service request details
         service_request = MONGO_DB.service_requests.find_one({"_id": request_id})
         if not service_request:
             return Response({"error": "No matching service request found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Get user details
         user = MONGO_DB.users.find_one({"_id": ObjectId(service_request["user_id"])})
-        if not user:
-            return Response({"error": "User not found."}, status=status.HTTP_400_BAD_REQUEST)
+        provider = MONGO_DB.providers.find_one({"_id": ObjectId(service_request["provider_id"])})
+        if not user or not provider:
+            return Response({"error": "User or Provider not found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ensure required fields exist
         required_fields = ["charges", "total", "payment_method"]
         for field in required_fields:
             if field not in data:
                 return Response({"error": f"{field} is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create bill data
+        # Create bill ID
+        bill_id = f"BILL-{timezone.now().strftime('%Y%m%d')}-{get_random_string(6).upper()}"
+
         bill = {
-            "request_id": request_id,
+            "bill_id": bill_id,
+            "request_id": str(request_id),
             "user_id": service_request["user_id"],
-            "name": user["name"],  # Fetch the user's name
+            "user_name": user["name"],
+            "user_email": user["email"],
             "provider_id": service_request["provider_id"],
-            "charges": data["charges"],
-            "supplements": data.get("supplements", []),
+            "provider_name": provider["name"],
+            "provider_email": provider["email"],
+            "services_performed": service_request.get("description", ""),
+            "service_charge": data["charges"],
             "total": data["total"],
             "payment_method": data["payment_method"],
             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
         }
 
-        # Insert bill into MongoDB
-        result = MONGO_DB.bills.insert_one(bill)
+        # Save bill in database
+        MONGO_DB.bills.insert_one(bill)
+
+        # Generate PDF
+        pdf_file = self.generate_bill_pdf(bill)
+        if not pdf_file:
+            return Response({"error": "Failed to generate PDF."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Send Email
+        self.send_bill_email(bill, pdf_file)
 
         return Response({
-            "message": "Bill generated successfully.",
-            "bill_id": str(result.inserted_id)
+            "message": "Bill generated and emailed successfully.",
+            "bill_id": bill_id
         }, status=status.HTTP_201_CREATED)
+
+    def generate_bill_pdf(self, bill_data):
+        """
+        Generate PDF for the bill.
+        """
+        template_path = 'invoice_template.html'  # Create this template
+        context = {'bill': bill_data}
+        html = render_to_string(template_path, context)
+        result = BytesIO()
+        pisa_status = pisa.CreatePDF(html, dest=result)
+        if pisa_status.err:
+            return None
+        return result
+
+    def send_bill_email(self, bill, pdf_data):
+        """
+        Send the bill PDF to user and provider via email.
+        """
+        subject = f"ServiceBuddy Bill - {bill['bill_id']}"
+        body = "Attached is the service bill for your recent service."
+        email = EmailMessage(
+            subject,
+            body,
+            settings.EMAIL_HOST_USER,  # change to your sender email
+            [bill["user_email"], bill["provider_email"]]
+        )
+        email.attach(f"bill_{bill['bill_id']}.pdf", pdf_data.getvalue(), 'application/pdf')
+        email.send()
 
 # -------------------------Token Management-------------------------
 class RefreshTokenView(APIView):
