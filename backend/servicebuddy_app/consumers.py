@@ -21,6 +21,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def send_notification(self, event):
+        print(f"📢 send_notification called with event: {event}")
         notification = event.get("notification", {})
         await self.send(text_data=json.dumps({
             "type": notification.get("type", "info"),
@@ -29,10 +30,17 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             "created_at": notification.get("created_at"),
         }))
 
-
     async def booking_status_update(self, event):
+        print(f"⚠️ booking_status_update called with event: {event}")
         await self.send(text_data=json.dumps({
             "type": "booking_status_update",
+            "message": event["message"]
+        }))
+    
+    async def receive_notification(self, event):
+        print(f"📬 receive_notification called with event: {event}")
+        await self.send(text_data=json.dumps({
+            "type": "receive_notification",
             "message": event["message"]
         }))
 

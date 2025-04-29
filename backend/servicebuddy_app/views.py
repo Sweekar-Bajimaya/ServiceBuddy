@@ -24,6 +24,8 @@ from xhtml2pdf import pisa
 from django.template.loader import render_to_string
 from io import BytesIO
 from django.utils import timezone
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 # -------------------------Register, Login, Verify Email-------------------------
 class RegisterView(APIView):
@@ -359,30 +361,90 @@ class ServiceRequestCreate(APIView):
             status=status.HTTP_201_CREATED
         )
 
+# class ServiceRequestUpdate(APIView):
+#     """
+#     API endpoint to update a service request (accept/decline).
+#     """
+#     permission_classes = [IsProvider]
+#     def patch(self, request, request_id):
+#         action = request.data.get("action")
+#         if action not in ["accept", "decline"]:
+#             return Response({"error": "Invalid action."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         update_fields = {"status": action, "updated_at": datetime.utcnow() + timedelta(hours=5, minutes=45)}
+#         MONGO_DB.service_requests.update_one({"_id": ObjectId(request_id)}, {"$set": update_fields})
+
+#         # Fetch the updated request
+#         service_request = MONGO_DB.service_requests.find_one({"_id": ObjectId(request_id)})
+#         notification = {
+#             "to": service_request["user_id"],
+#             "type": "service_request_update",
+#             "service_request_id": request_id,
+#             "message": f"Your service request has been {action}ed.",
+#             "created_at": datetime.utcnow()+ timedelta(hours=5, minutes=45)
+#         }
+#         MONGO_DB.notifications.insert_one(notification)
+#         return Response({"message": f"Service request {action}ed."}, status=status.HTTP_200_OK)
+
+
 class ServiceRequestUpdate(APIView):
-    """
-    API endpoint to update a service request (accept/decline).
-    """
     permission_classes = [IsProvider]
+
     def patch(self, request, request_id):
         action = request.data.get("action")
         if action not in ["accept", "decline"]:
             return Response({"error": "Invalid action."}, status=status.HTTP_400_BAD_REQUEST)
 
-        update_fields = {"status": action, "updated_at": datetime.utcnow() + timedelta(hours=5, minutes=45)}
+        update_fields = {
+            "status": action,
+            "updated_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
+        }
         MONGO_DB.service_requests.update_one({"_id": ObjectId(request_id)}, {"$set": update_fields})
 
         # Fetch the updated request
         service_request = MONGO_DB.service_requests.find_one({"_id": ObjectId(request_id)})
-        notification = {
-            "to": service_request["user_id"],
+        user_id = service_request["user_id"]
+
+        # Build message
+        action_message = f"Your service request has been {action}ed."
+        timestamp = datetime.utcnow() + timedelta(hours=5, minutes=45)
+
+        # Save to DB
+        MONGO_DB.notifications.insert_one({
+            "to": user_id,
             "type": "service_request_update",
             "service_request_id": request_id,
-            "message": f"Your service request has been {action}ed.",
-            "created_at": datetime.utcnow()+ timedelta(hours=5, minutes=45)
-        }
-        MONGO_DB.notifications.insert_one(notification)
+            "message": action_message,
+            "created_at": timestamp
+        })
+
+        # Send real-time WebSocket notification
+        send_notification_to_user(
+            user_id=user_id,
+            message=action_message,
+            request_id=request_id,
+            notif_type="success" if action == "accept" else "info",
+            created_at=timestamp.isoformat()
+        )
+
         return Response({"message": f"Service request {action}ed."}, status=status.HTTP_200_OK)
+
+    
+
+def send_notification_to_user(user_id, message, request_id, notif_type="info", created_at=None):
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f"notifications_user_{user_id}",
+        {
+            "type": "send_notification",
+            "notification": {
+                "type": notif_type,
+                "message": message,
+                "service_request_id": str(request_id),
+                "created_at": created_at
+            }
+        }
+    )
 
 # -------------------------Provider Management-------------------------
 class ProviderRequestView(APIView):
@@ -1254,3 +1316,4 @@ class ReviewListView(APIView):
                     print(f"Error fetching user profile: {e}")
         
         return Response(reviews, status=status.HTTP_200_OK)
+    
