@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import RegisterSerializer, LoginSerializer, ServiceRequestSerializer, ReviewSerializer
+from .serializers import RegisterSerializer, LoginSerializer, ServiceRequestSerializer, ReviewSerializer, ContactQuerySerializer
 from .db import MONGO_DB
 from .utils import generate_tokens, generate_reset_token, verify_reset_token
 from datetime import datetime
@@ -858,6 +858,8 @@ class AdminChartDataView(APIView):
             return Response(data, status=200)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+        
+
 
 # -------------------------Bill Generation-------------------------
 class BillGeneration(APIView):
@@ -1290,3 +1292,70 @@ class ReviewListView(APIView):
                     print(f"Error fetching user profile: {e}")
         
         return Response(reviews, status=status.HTTP_200_OK)
+    
+class SubmitContactQuery(APIView):
+    """
+    API endpoint for users to submit a contact query.
+    """
+    permission_classes = [IsUser]
+    
+    def post(self, request):
+        data = request.data
+        user_id = request.user.get("user_id")
+        if not user_id:
+            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Ensure required fields are present
+        required_fields = ["subject", "message"]
+        for field in required_fields:
+            if field not in data:
+                return Response({"error": f"{field} is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get the latest user data to ensure we have the most recent profile picture
+        user_collection = MONGO_DB.users
+        user_data = user_collection.find_one({"_id": ObjectId(user_id)})
+        
+        # Create contact query document
+        contact_query = {
+            "user_id": user_id,
+            "user_name": request.user.get("name", "Unknown"),
+            "user_email": request.user.get("email", "Unknown"),
+            "subject": data["subject"],
+            "message": data["message"],
+            "profile_picture": user_data.get("profile_picture") if user_data else request.user.get("profile_picture", None),
+            "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45),
+        }
+
+        # Insert contact query into MongoDB
+        result = MONGO_DB.contact_queries.insert_one(contact_query)
+
+        return Response({
+            "message": "Contact query submitted successfully.",
+            "query_id": str(result.inserted_id)
+        }, status=status.HTTP_201_CREATED)
+        
+class AdminGetAllContactQueries(APIView):
+    """
+    API endpoint for admin to get all contact queries.
+    """
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        queries = list(MONGO_DB.contact_queries.find({}).sort("created_at", -1))
+
+        # Convert ObjectId to string for better compatibility with frontend
+        for query in queries:
+            query["_id"] = str(query["_id"])
+            query["user_id"] = str(query["user_id"])
+            
+            # Make sure profile_picture is included in the response 
+            if "profile_picture" not in query or not query["profile_picture"]:
+                # If no profile picture in query, try to fetch from user
+                try:
+                    user_data = MONGO_DB.users.find_one({"_id": ObjectId(query["user_id"])})
+                    if user_data and "profile_picture" in user_data:
+                        query["profile_picture"] = user_data["profile_picture"]
+                except Exception as e:
+                    print(f"Error fetching user profile: {e}")
+
+        return Response(queries, status=status.HTTP_200_OK)

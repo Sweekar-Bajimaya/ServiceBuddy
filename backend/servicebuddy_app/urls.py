@@ -15,6 +15,8 @@ urlpatterns = [
     path('bills/', BillGeneration.as_view(), name='bill_generation'),
     path('add-provider/', AddServiceProviderView.as_view(), name='add-service-provider'),
     path('my-bookings/', MyBookings.as_view(), name='my_bookings'),
+    path('contact/submit/', SubmitContactQuery.as_view(), name='submit_contact_query'),
+    path('admin/contact-queries/', AdminGetAllContactQueries.as_view(), name='admin_get_contact_queries'),
 
     #--------------------Provider Views--------------------
     path('provider-requests/', ProviderRequestView.as_view(), name = 'provider-requests'),

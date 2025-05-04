@@ -123,3 +123,15 @@ class ReviewSerializer(serializers.Serializer):
     user_id = serializers.CharField(required=True)  # User ID of the user giving the review
     user_name = serializers.CharField(required=True)  # Name of the user giving the review
     profile_picture = serializers.ImageField(required=False)  # Profile picture of the user giving the review
+    
+class ContactQuerySerializer(serializers.Serializer):
+    """
+    Serializer for contact queries. 
+    """
+    name = serializers.CharField()
+    email = serializers.EmailField()
+    subject = serializers.CharField()
+    message = serializers.CharField()
+    profile_picture = serializers.ImageField(required=False)  # Profile picture of the user giving the review
+    created_at = serializers.DateTimeField(read_only=True)
+    

@@ -128,3 +128,11 @@ export const getAdminDashboardData = () => {
 export const getAdminChartData = () => {
   return API.get('/admin/chart-data');
 };
+
+export const getAdminContactQueries = () => {
+  return API.get('admin/contact-queries/');
+};
+
+export const createContactQuery = (data) => {
+  return API.post('contact/submit/', data);
+}

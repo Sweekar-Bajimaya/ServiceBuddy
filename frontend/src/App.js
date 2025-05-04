@@ -25,6 +25,7 @@ import ProviderProfilePage from './components/providers/ProviderProfilePage';
 import ReviewForm from './components/common/ReviewForm';
 import ProviderReviews from './components/providers/ProviderReviews';
 import VerifyOTP from './components/auth/VerifyOTP';
+import AdminContactQueriesPage from './components/Admin/AdminContactQueriesPage';
 import './App.css';
 
 function App() {
@@ -63,6 +64,7 @@ function App() {
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           <Route path="/add-provider" element={<AddProvider />} />
           <Route path="/providerslist" element={<AdminProvidersList />} />
+          <Route path="/admin-contact-queries" element={<AdminContactQueriesPage />} />
 
           {/* Default Route to Homepage */}
           <Route path="/" element={<HomePage />} />

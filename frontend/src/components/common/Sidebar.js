@@ -10,6 +10,7 @@ import {
   Logout as LogoutIcon,
   PersonAdd as PersonAddIcon,
   Reviews as ReviewIcon, 
+  Feedback as FeedbackIcon,
   
 } from "@mui/icons-material";
 import { useNavigate, Link } from "react-router-dom";
@@ -122,14 +123,14 @@ const Sidebar = () => {
               </ListItemButton>
             </ListItem>
 
-            {/* <ListItem disablePadding>
-              <ListItemButton component={Link} to="/service-requests">
+            <ListItem disablePadding>
+              <ListItemButton component={Link} to="/admin-contact-queries">
                 <ListItemIcon>
-                  <ServiceRequestsIcon />
+                  <FeedbackIcon />
                 </ListItemIcon>
-                <ListItemText primary="Service Requests" />
+                <ListItemText primary="Customer Querries" />
               </ListItemButton>
-            </ListItem> */}
+            </ListItem>
           </>
         )}
 
