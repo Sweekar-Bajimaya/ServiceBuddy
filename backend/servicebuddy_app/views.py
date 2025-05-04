@@ -27,7 +27,7 @@ from django.utils import timezone
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from collections import Counter
-
+from pymongo import ASCENDING
 
 # -------------------------Register, Login, Verify Email-------------------------
 class RegisterView(APIView):
@@ -362,33 +362,6 @@ class ServiceRequestCreate(APIView):
             },
             status=status.HTTP_201_CREATED
         )
-
-# class ServiceRequestUpdate(APIView):
-#     """
-#     API endpoint to update a service request (accept/decline).
-#     """
-#     permission_classes = [IsProvider]
-#     def patch(self, request, request_id):
-#         action = request.data.get("action")
-#         if action not in ["accept", "decline"]:
-#             return Response({"error": "Invalid action."}, status=status.HTTP_400_BAD_REQUEST)
-
-#         update_fields = {"status": action, "updated_at": datetime.utcnow() + timedelta(hours=5, minutes=45)}
-#         MONGO_DB.service_requests.update_one({"_id": ObjectId(request_id)}, {"$set": update_fields})
-
-#         # Fetch the updated request
-#         service_request = MONGO_DB.service_requests.find_one({"_id": ObjectId(request_id)})
-#         notification = {
-#             "to": service_request["user_id"],
-#             "type": "service_request_update",
-#             "service_request_id": request_id,
-#             "message": f"Your service request has been {action}ed.",
-#             "created_at": datetime.utcnow()+ timedelta(hours=5, minutes=45)
-#         }
-#         MONGO_DB.notifications.insert_one(notification)
-#         return Response({"message": f"Service request {action}ed."}, status=status.HTTP_200_OK)
-
-
 class ServiceRequestUpdate(APIView):
     permission_classes = [IsProvider]
 
@@ -493,26 +466,6 @@ class ProviderScheduleView(APIView):
             booking["status"] = booking.get("status", "Accepted")
 
         return Response(bookings)
-
-# class UpdateBookingStatusView(APIView):
-#     """
-#     API endpoint for providers to update the status of a booking.
-#     """
-#     permission_classes = [IsProvider]
-#     def patch(self, request, request_id):
-#         new_status = request.data.get("status")
-#         if new_status not in ["In Progress", "Completed", "Not Completed"]:
-#             return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         result = MONGO_DB.service_requests.update_one(
-#             {"_id": ObjectId(request_id), "status": {"$in": ["accept", "In Progress"]}},
-#             {"$set": {"status": new_status}}
-#         )
-
-#         if result.matched_count == 0:
-#             return Response({"error": "Booking not found or not eligible for update"}, status=status.HTTP_404_NOT_FOUND)
-
-#         return Response({"message": "Status updated successfully"}, status=status.HTTP_200_OK)
 
 class UpdateBookingStatusView(APIView):
     """
@@ -805,140 +758,6 @@ class AdminDashboardSummaryView(APIView):
             return Response(data, status=200)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-        
-# class Admin_chart_data(APIView):
-#     """
-#     API endpoint for admin to get chart data for service requests.
-#     """
-#     permission_classes = [IsAdmin]
-
-#     def get(self, request):
-#         today = datetime.utcnow() + timedelta(hours=5, minutes=45)
-#         last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
-
-#         # 1. Service Requests per Day
-#         requests_per_day = []
-#         for day in last_7_days:
-#             start = day.replace(hour=0, minute=0, second=0, microsecond=0)
-#             end = day.replace(hour=23, minute=59, second=59, microsecond=999999)
-#             count = MONGO_DB.service_request.count_documents({
-#                 "created_at": {"$gte": start, "$lte": end}
-#             })
-#             requests_per_day.append({
-#                 "date": day.strftime("%Y-%m-%d"),
-#                 "count": count
-#             })
-
-#         # Fetch all service requests
-#         service_requests = list(MONGO_DB.service_request.find())
-
-#         # 2. Status Distribution
-#         status_counter = Counter(req.get("status", "Unknown") for req in service_requests)
-#         status_distribution = [{"name": k, "value": v} for k, v in status_counter.items()]
-
-#         # 3. Payment Methods
-#         payment_counter = Counter(req.get("payment_method", "Unknown") for req in service_requests)
-#         payment_distribution = [{"name": k, "value": v} for k, v in payment_counter.items()]
-
-#         # 4. Location Distribution
-#         location_counter = Counter(req.get("location", "Unknown") for req in service_requests)
-#         location_distribution = [{"name": k, "value": v} for k, v in location_counter.items()]
-
-#         # 5. Shifts Distribution
-#         shifts = [f"{req.get('shift_start_time')}–{req.get('shift_end_time')}" for req in service_requests]
-#         shift_counter = Counter(shifts)
-#         shifts_distribution = [{"name": k, "value": v} for k, v in shift_counter.items()]
-
-#         return Response({
-#             "requests_per_day": requests_per_day,
-#             "status_distribution": status_distribution,
-#             "payment_distribution": payment_distribution,
-#             "location_distribution": location_distribution,
-#             "shifts_distribution": shifts_distribution
-#         }, status=status.HTTP_200_OK)
-
-# Second Version of Admin Chart Data View
-# class AdminChartDataView(APIView):
-#     """
-#     API endpoint for admin to get chart data for service requests.
-#     """
-#     permission_classes = [IsAdmin]  # Add your IsAdmin permission here if needed
-
-#     def get(self, request):
-#         try:
-#             # Get the last 7 days
-#             today = datetime.utcnow() + timedelta(hours=5, minutes=45)
-#             last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
-
-#             # Initialize data structures
-#             requests_per_day = []
-#             status_over_time = []
-#             payment_distribution = {}
-#             location_distribution = {}
-
-#             for day in last_7_days:
-#                 date_str = day.strftime("%Y-%m-%d")
-#                 start_of_day = day.replace(hour=0, minute=0, second=0, microsecond=0)
-#                 end_of_day = day.replace(hour=23, minute=59, second=59, microsecond=999999)
-
-#                 # Count total requests for the day
-#                 total_count = MONGO_DB.service_requests.count_documents({
-#                     "created_at": {
-#                         "$gte": start_of_day,
-#                         "$lte": end_of_day
-#                     }
-#                 })
-#                 requests_per_day.append({"date": date_str, "count": total_count})
-
-#                 # Count requests by status for the day
-#                 statuses = ["Completed", "Pending"]
-#                 status_counts = {"date": date_str}
-#                 for status_name in statuses:
-#                     count = MONGO_DB.service_requests.count_documents({
-#                         "created_at": {
-#                             "$gte": start_of_day,
-#                             "$lte": end_of_day
-#                         },
-#                         "status": status_name
-#                     })
-#                     status_counts[status_name] = count
-#                 status_over_time.append(status_counts)
-
-#             # Aggregate payment methods
-#             payment_cursor = MONGO_DB.service_requests.aggregate([
-#                 {"$group": {"_id": "$payment_method", "count": {"$sum": 1}}}
-#             ])
-#             for doc in payment_cursor:
-#                 payment_method = doc["_id"] if doc["_id"] is not None else "Unknown"
-#                 payment_distribution[payment_method] = doc["count"]
-
-#             # Aggregate locations
-#             location_cursor = MONGO_DB.service_requests.aggregate([
-#                 {"$group": {"_id": "$location", "count": {"$sum": 1}}}
-#             ])
-
-#             location_distribution = []
-#             for doc in location_cursor:
-#                 location = doc["_id"] if doc["_id"] is not None else "Unknown"
-#                 location_distribution.append({
-#                     "location": location,
-#                     "count": doc["count"]
-#                 })
-
-#             data = {
-#                 "requests_per_day": requests_per_day,
-#                 "status_over_time": status_over_time,
-#                 "payment_distribution": payment_distribution,
-#                 "location_distribution": location_distribution
-#             }
-            
-#             # Use direct HTTP status code instead of status object
-#             return Response(data, status=200)
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=500)
-
-
-from pymongo import ASCENDING
 
 class AdminChartDataView(APIView):
     """
@@ -1249,93 +1068,6 @@ class PasswordResetConfirmView(APIView):
 
 
 # -------------------------Profile Management-------------------------
-
-# This is working for user only.
-# class ProfileView(APIView):
-#     """
-#     API endpoint for users and providers to view and update their profiles.
-#     """
-#     permission_classes = [IsAdmin | IsUser | IsProvider]
-#     parser_classes = [MultiPartParser, FormParser]  # ✅ Add this to support file uploads
-    
-#     def get(self, request):
-#         user_id = request.user.get("user_id")
-#         if not user_id:
-#             return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
-
-#         user = MONGO_DB.users.find_one({"_id": ObjectId(user_id)})
-#         if not user:
-#             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
-#         user["_id"] = str(user["_id"])
-#         return Response(user, status=status.HTTP_200_OK)
-
-#     def post(self, request):
-#         user = request.user
-#         data = request.data
-
-#         print("FILES:", request.FILES)
-#         print("DATA:", request.data)
-
-#         if isinstance(user, dict):
-#             user_id = user.get("_id") or user.get("id") or user.get("user_id")
-#         else:
-#             user_id = getattr(user, "id", None)
-
-#         try:
-#             user_obj_id = ObjectId(user_id)
-#         except Exception as e:
-#             print("Invalid ObjectId:", e)
-#             return Response({"error": "Invalid user ID"}, status=400)
-
-#         update_fields = {
-#             "name": data.get("name"),
-#             "email": data.get("email"),
-#             "phone_num": data.get("phone_num"),
-#             "location": data.get("location"),
-#         }
-
-#         profile_picture = request.FILES.get("profile_picture")
-#         if profile_picture:
-#             file_name = f"profile_pics/{profile_picture.name}"
-#             fs = FileSystemStorage()
-#             file_path = fs.save(file_name, ContentFile(profile_picture.read()))
-            
-#             # Generate full URL including hostname
-#             image_url = request.build_absolute_uri(settings.MEDIA_URL + file_path)
-#             update_fields["profile_picture"] = image_url
-#             print("Set profile picture URL:", image_url)
-
-#         update_fields = {k: v for k, v in update_fields.items() if v is not None}
-
-#         print("User Object ID:", user_obj_id)
-#         print("User Type:", user.get("user_type"))
-#         print("Update Fields:", update_fields)
-
-#         if update_fields:
-#             if user.get("user_type") == "provider":
-#                 collection = MONGO_DB.providers
-#             else:
-#                 collection = MONGO_DB.users
-
-#             collection.update_one({"_id": user_obj_id}, {"$set": update_fields})
-            
-#             # Get updated user to verify changes
-#             updated_user = collection.find_one({"_id": user_obj_id})
-#             print("Updated user document:", updated_user)
-            
-#             # Clean up _id for response
-#             if updated_user:
-#                 updated_user["_id"] = str(updated_user["_id"])
-#                 # Return the full updated user object
-#                 return Response(updated_user, status=status.HTTP_200_OK)
-            
-#             return Response({"message": "Profile updated"}, status=status.HTTP_200_OK)
-
-#         print("FAILED TO UPDATE PROFILE")
-#         return Response({"error": "Invalid update"}, status=status.HTTP_400_BAD_REQUEST)
-
-#for both users and providers
 class ProfileView(APIView):
     permission_classes = [IsAdmin | IsUser | IsProvider]
     parser_classes = [MultiPartParser, FormParser]
@@ -1408,25 +1140,6 @@ class ProfileView(APIView):
                     print("Error parsing available time:", e)
                     return Response({"error": "Invalid available time format"}, status=400)
 
-            # # Handle services_offered if provided
-            # services_offered = data.get("services_offered")
-            # if services_offered:
-            #     try:
-            #         # Debug log
-            #         print("Services offered received:", services_offered, type(services_offered))
-            #         # If services_offered is a string (JSON), parse it
-            #         if isinstance(services_offered, str):
-            #             services_offered = json.loads(services_offered)
-            #         update_fields["services_offered"] = services_offered
-                    
-            #         # Debug log
-            #         print("Processed services_offered:", update_fields["services_offered"])     
-                               
-            #     except Exception as e:
-            #         print("Error parsing services offered:", e)
-            #         return Response({"error": "Invalid services offered format"}, status=400)
-                
-            # Handle experience if provided
             experience = data.get("experience")
             if experience:
                 update_fields["experience"] = experience
@@ -1577,4 +1290,3 @@ class ReviewListView(APIView):
                     print(f"Error fetching user profile: {e}")
         
         return Response(reviews, status=status.HTTP_200_OK)
-    
