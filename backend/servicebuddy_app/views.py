@@ -26,6 +26,8 @@ from io import BytesIO
 from django.utils import timezone
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from collections import Counter
+
 
 # -------------------------Register, Login, Verify Email-------------------------
 class RegisterView(APIView):
@@ -778,7 +780,266 @@ class AdminRequestsView(APIView):
             req["_id"] = str(req["_id"])
             request_list.append(req)
         return Response(request_list, status=status.HTTP_200_OK)
+
+class AdminDashboardSummaryView(APIView):
+    """
+    API endpoint for Admin to view their dashboard summary.
+    """
+    permission_classes = [IsAdmin]  # Add your IsAdmin permission here if needed
+
+    def get(self, request):
+        try:
+            total_users = MONGO_DB.users.count_documents({"user_type": "user"})
+            total_providers = MONGO_DB.providers.count_documents({"user_type": "provider"})
+            total_service_requests = MONGO_DB.service_requests.count_documents({})
+            total_bills = MONGO_DB.bills.count_documents({})
+
+            data = {
+                "total_users": total_users,
+                "total_providers": total_providers,
+                "total_service_requests": total_service_requests,
+                "total_bills": total_bills
+            }
+            
+            # Use direct HTTP status code instead of status object
+            return Response(data, status=200)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
         
+# class Admin_chart_data(APIView):
+#     """
+#     API endpoint for admin to get chart data for service requests.
+#     """
+#     permission_classes = [IsAdmin]
+
+#     def get(self, request):
+#         today = datetime.utcnow() + timedelta(hours=5, minutes=45)
+#         last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
+
+#         # 1. Service Requests per Day
+#         requests_per_day = []
+#         for day in last_7_days:
+#             start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+#             end = day.replace(hour=23, minute=59, second=59, microsecond=999999)
+#             count = MONGO_DB.service_request.count_documents({
+#                 "created_at": {"$gte": start, "$lte": end}
+#             })
+#             requests_per_day.append({
+#                 "date": day.strftime("%Y-%m-%d"),
+#                 "count": count
+#             })
+
+#         # Fetch all service requests
+#         service_requests = list(MONGO_DB.service_request.find())
+
+#         # 2. Status Distribution
+#         status_counter = Counter(req.get("status", "Unknown") for req in service_requests)
+#         status_distribution = [{"name": k, "value": v} for k, v in status_counter.items()]
+
+#         # 3. Payment Methods
+#         payment_counter = Counter(req.get("payment_method", "Unknown") for req in service_requests)
+#         payment_distribution = [{"name": k, "value": v} for k, v in payment_counter.items()]
+
+#         # 4. Location Distribution
+#         location_counter = Counter(req.get("location", "Unknown") for req in service_requests)
+#         location_distribution = [{"name": k, "value": v} for k, v in location_counter.items()]
+
+#         # 5. Shifts Distribution
+#         shifts = [f"{req.get('shift_start_time')}–{req.get('shift_end_time')}" for req in service_requests]
+#         shift_counter = Counter(shifts)
+#         shifts_distribution = [{"name": k, "value": v} for k, v in shift_counter.items()]
+
+#         return Response({
+#             "requests_per_day": requests_per_day,
+#             "status_distribution": status_distribution,
+#             "payment_distribution": payment_distribution,
+#             "location_distribution": location_distribution,
+#             "shifts_distribution": shifts_distribution
+#         }, status=status.HTTP_200_OK)
+
+# Second Version of Admin Chart Data View
+# class AdminChartDataView(APIView):
+#     """
+#     API endpoint for admin to get chart data for service requests.
+#     """
+#     permission_classes = [IsAdmin]  # Add your IsAdmin permission here if needed
+
+#     def get(self, request):
+#         try:
+#             # Get the last 7 days
+#             today = datetime.utcnow() + timedelta(hours=5, minutes=45)
+#             last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
+
+#             # Initialize data structures
+#             requests_per_day = []
+#             status_over_time = []
+#             payment_distribution = {}
+#             location_distribution = {}
+
+#             for day in last_7_days:
+#                 date_str = day.strftime("%Y-%m-%d")
+#                 start_of_day = day.replace(hour=0, minute=0, second=0, microsecond=0)
+#                 end_of_day = day.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+#                 # Count total requests for the day
+#                 total_count = MONGO_DB.service_requests.count_documents({
+#                     "created_at": {
+#                         "$gte": start_of_day,
+#                         "$lte": end_of_day
+#                     }
+#                 })
+#                 requests_per_day.append({"date": date_str, "count": total_count})
+
+#                 # Count requests by status for the day
+#                 statuses = ["Completed", "Pending"]
+#                 status_counts = {"date": date_str}
+#                 for status_name in statuses:
+#                     count = MONGO_DB.service_requests.count_documents({
+#                         "created_at": {
+#                             "$gte": start_of_day,
+#                             "$lte": end_of_day
+#                         },
+#                         "status": status_name
+#                     })
+#                     status_counts[status_name] = count
+#                 status_over_time.append(status_counts)
+
+#             # Aggregate payment methods
+#             payment_cursor = MONGO_DB.service_requests.aggregate([
+#                 {"$group": {"_id": "$payment_method", "count": {"$sum": 1}}}
+#             ])
+#             for doc in payment_cursor:
+#                 payment_method = doc["_id"] if doc["_id"] is not None else "Unknown"
+#                 payment_distribution[payment_method] = doc["count"]
+
+#             # Aggregate locations
+#             location_cursor = MONGO_DB.service_requests.aggregate([
+#                 {"$group": {"_id": "$location", "count": {"$sum": 1}}}
+#             ])
+
+#             location_distribution = []
+#             for doc in location_cursor:
+#                 location = doc["_id"] if doc["_id"] is not None else "Unknown"
+#                 location_distribution.append({
+#                     "location": location,
+#                     "count": doc["count"]
+#                 })
+
+#             data = {
+#                 "requests_per_day": requests_per_day,
+#                 "status_over_time": status_over_time,
+#                 "payment_distribution": payment_distribution,
+#                 "location_distribution": location_distribution
+#             }
+            
+#             # Use direct HTTP status code instead of status object
+#             return Response(data, status=200)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=500)
+
+
+from pymongo import ASCENDING
+
+class AdminChartDataView(APIView):
+    """
+    API endpoint for admin to get chart data for service requests.
+    """
+    permission_classes = [IsAdmin]  # Add your IsAdmin permission here if needed
+
+    def get(self, request):
+        try:
+            # Get the last 7 days
+            today = datetime.utcnow() + timedelta(hours=5, minutes=45)
+            last_7_days = [today - timedelta(days=i) for i in range(6, -1, -1)]
+
+            # Initialize data structures
+            requests_per_day = []
+            status_over_time = []
+            payment_distribution = {}
+
+            for day in last_7_days:
+                date_str = day.strftime("%Y-%m-%d")
+                start_of_day = day.replace(hour=0, minute=0, second=0, microsecond=0)
+                end_of_day = day.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+                # Count total requests for the day
+                total_count = MONGO_DB.service_requests.count_documents({
+                    "created_at": {
+                        "$gte": start_of_day,
+                        "$lte": end_of_day
+                    }
+                })
+                requests_per_day.append({"date": date_str, "count": total_count})
+
+                # Count requests by status for the day
+                statuses = ["Completed", "Pending"]
+                status_counts = {"date": date_str}
+                for status_name in statuses:
+                    count = MONGO_DB.service_requests.count_documents({
+                        "created_at": {
+                            "$gte": start_of_day,
+                            "$lte": end_of_day
+                        },
+                        "status": status_name
+                    })
+                    status_counts[status_name] = count
+                status_over_time.append(status_counts)
+
+            # Aggregate payment methods
+            payment_cursor = MONGO_DB.service_requests.aggregate([
+                {"$group": {"_id": "$payment_method", "count": {"$sum": 1}}}
+            ])
+            for doc in payment_cursor:
+                payment_method = doc["_id"] if doc["_id"] is not None else "Unknown"
+                payment_distribution[payment_method] = doc["count"]
+
+            # Normalize location to title case and aggregate
+            location_cursor = MONGO_DB.service_requests.aggregate([
+                {
+                    "$project": {
+                        "location": {
+                            "$cond": {
+                                "if": {"$ne": ["$location", None]},
+                                "then": {
+                                    "$concat": [
+                                        { "$toUpper": { "$substrCP": ["$location", 0, 1] } },
+                                        { "$toLower": { "$substrCP": ["$location", 1, { "$strLenCP": "$location" }] } }
+                                    ]
+                                },
+                                "else": "Unknown"
+                            }
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$location",
+                        "count": { "$sum": 1 }
+                    }
+                },
+                {
+                    "$sort": { "count": -1 }
+                }
+            ])
+
+            location_distribution = []
+            for doc in location_cursor:
+                location_distribution.append({
+                    "location": doc["_id"],
+                    "count": doc["count"]
+                })
+
+            data = {
+                "requests_per_day": requests_per_day,
+                "status_over_time": status_over_time,
+                "payment_distribution": payment_distribution,
+                "location_distribution": location_distribution
+            }
+
+            return Response(data, status=200)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
 # -------------------------Bill Generation-------------------------
 class BillGeneration(APIView):
     """

@@ -120,3 +120,11 @@ export const submitReview = (reviewData) => {
 export const getReviewList = () => {
   return API.get('/reviewlist/');
 };
+
+export const getAdminDashboardData = () => {
+  return API.get('/admin/dashboard-summary/'); // Adjust the endpoint as per your Django backend
+}
+
+export const getAdminChartData = () => {
+  return API.get('/admin/chart-data');
+};

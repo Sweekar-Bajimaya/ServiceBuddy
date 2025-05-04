@@ -217,6 +217,9 @@ const AdminProviderList = () => {
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
+          bgcolor: "white",
+          color: "text.primary",
+          boxShadow: 1,
         }}
       >
         <Toolbar>
