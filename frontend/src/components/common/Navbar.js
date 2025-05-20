@@ -374,8 +374,19 @@ const Navbar = ({ transparent = true }) => {
                       >
                         <ListItemIcon>{getIconByType(notif.type)}</ListItemIcon>
                         <ListItemText
-                          primary={notif.message}
-                          secondary={new Date(notif.created_at).toLocaleString()}
+                          primary={
+                            <Typography
+                              variant="body2"
+                              sx={{ whiteSpace: "normal", wordWrap: "break-word" }}
+                            >
+                              {notif.message}
+                            </Typography>
+                          }
+                          secondary={
+                            <Typography variant="caption" color="text.secondary">
+                              {new Date(notif.created_at).toLocaleString()}
+                            </Typography>
+                          }
                         />
                       </MenuItem>
                     ))

@@ -326,18 +326,39 @@ class ServiceRequestCreate(APIView):
         # Convert appointment_date to ISO string
         appointment_date = validated_data.get("appointment_date")
         if appointment_date:
-            appointment_date = appointment_date.isoformat()  # e.g., "2025-03-05"
+            appointment_date_str = appointment_date.isoformat()  # e.g., "2025-03-05"
+        else:
+            return Response({"error": "Appointment date is required."}, status=400)
+
+        provider_id = validated_data["provider_id"]
+        shift_start = validated_data["shift_start_time"]
+        shift_end = validated_data["shift_end_time"]
+
+        # ✅ Check if the provider already has a booking for the same date and shift
+        conflict = MONGO_DB.service_requests.find_one({
+            "provider_id": provider_id,
+            "appointment_date": appointment_date_str,
+            "shift_start_time": shift_start,
+            "shift_end_time": shift_end,
+            "status": {"$in": ["pending", "accept"]},
+        })
+
+        if conflict:
+            return Response(
+                {"error": "This shift is already booked for the selected date."},
+                status=status.HTTP_409_CONFLICT
+            )
 
         # Prepare the service request data
         service_request = {
             "user_id": request.user["user_id"],
             "user_name": request.user["name"],
-            "provider_id": validated_data["provider_id"],
+            "provider_id": provider_id,
             "description": validated_data.get("description", ""),
             "location": validated_data["location"],
-            "appointment_date": appointment_date,
-            "shift_start_time": validated_data["shift_start_time"],  # e.g., "08:00"
-            "shift_end_time": validated_data["shift_end_time"],      # e.g., "10:00"
+            "appointment_date": appointment_date_str,
+            "shift_start_time": shift_start,  # e.g., "08:00"
+            "shift_end_time": shift_end,      # e.g., "10:00"
             "payment_method": validated_data.get("payment_method"),
             "status": "pending",
             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
@@ -347,7 +368,7 @@ class ServiceRequestCreate(APIView):
 
         # Create a notification for the provider
         notification = {
-            "to": validated_data["provider_id"],
+            "to": provider_id,
             "type": "service_request",
             "service_request_id": str(result.inserted_id),
             "message": "New service request received.",
@@ -362,6 +383,7 @@ class ServiceRequestCreate(APIView):
             },
             status=status.HTTP_201_CREATED
         )
+        
 class ServiceRequestUpdate(APIView):
     permission_classes = [IsProvider]
 
@@ -478,12 +500,10 @@ class UpdateBookingStatusView(APIView):
         if new_status not in ["In Progress", "Completed", "Not Completed"]:
             return Response({"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Find the service request first to get details
         service_request = MONGO_DB.service_requests.find_one({"_id": ObjectId(request_id)})
         if not service_request:
             return Response({"error": "Booking not found"}, status=status.HTTP_404_NOT_FOUND)
-            
-        # Update the status
+
         result = MONGO_DB.service_requests.update_one(
             {"_id": ObjectId(request_id), "status": {"$in": ["accept", "In Progress"]}},
             {"$set": {"status": new_status}}
@@ -491,27 +511,53 @@ class UpdateBookingStatusView(APIView):
 
         if result.matched_count == 0:
             return Response({"error": "Booking not eligible for update"}, status=status.HTTP_404_NOT_FOUND)
+
+        user_id = service_request["user_id"]
+        timestamp = datetime.utcnow() + timedelta(hours=5, minutes=45)
+
+        # Send notification to user
+        notif_type = "info"
+        message = ""
         
-        # If status changed to Completed, generate bill automatically
+        if new_status == "In Progress":
+            message = "Your service request is now in progress."
+        elif new_status == "Completed":
+            message = "Your service has been completed. A bill has been generated and sent to your email."
+            notif_type = "success"
+        else:
+            message = "Your service request has not been completed."
+            notif_type = "warning"
+
+        # Save notification in DB
+        MONGO_DB.notifications.insert_one({
+            "to": user_id,
+            "type": "service_status_update",
+            "service_request_id": str(request_id),
+            "message": message,
+            "created_at": timestamp
+        })
+
+        # Send WebSocket notification
+        send_notification_to_user(
+            user_id=user_id,
+            message=message,
+            request_id=request_id,
+            notif_type=notif_type,
+            created_at=timestamp.isoformat()
+        )
+
         if new_status == "Completed":
             try:
-                # Get user and provider information
                 user = MONGO_DB.users.find_one({"_id": ObjectId(service_request["user_id"])})
                 provider = MONGO_DB.providers.find_one({"_id": ObjectId(service_request["provider_id"])})
                 
                 if not user or not provider:
                     return Response({"error": "User or Provider not found."}, status=status.HTTP_400_BAD_REQUEST)
-                
-                # Calculate service charge based on service duration
-                # This is a placeholder calculation - modify as needed
-                # For example, you might want to use the provider's hourly rate
-                service_charge = 1000  # Default value
-                
-                # Generate bill ID with random string
+
                 from django.utils.crypto import get_random_string
                 bill_id = f"BILL-{timezone.now().strftime('%Y%m%d')}-{get_random_string(6).upper()}"
-                
-                # Create bill data
+                service_charge = 1000
+
                 bill = {
                     "bill_id": bill_id,
                     "request_id": str(request_id),
@@ -523,23 +569,19 @@ class UpdateBookingStatusView(APIView):
                     "provider_email": provider["email"],
                     "services_performed": service_request.get("description", ""),
                     "service_charge": service_charge,
-                    "total": service_charge,  # You might want to add tax or other fees
+                    "total": service_charge,
                     "payment_method": service_request.get("payment_method", "Cash"),
-                    "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
+                    "created_at": timestamp
                 }
-                
-                # Save bill in database
+
                 MONGO_DB.bills.insert_one(bill)
-                
-                # Generate PDF
+
                 pdf_file = self.generate_bill_pdf(bill)
                 if pdf_file:
-                    # Send Email
                     self.send_bill_email(bill, pdf_file)
+
             except Exception as e:
-                # Log the error but don't prevent the status update
                 print(f"Error generating bill: {str(e)}")
-                # Continue with the response instead of failing
 
         return Response({"message": "Status updated successfully"}, status=status.HTTP_200_OK)
     
@@ -1359,3 +1401,4 @@ class AdminGetAllContactQueries(APIView):
                     print(f"Error fetching user profile: {e}")
 
         return Response(queries, status=status.HTTP_200_OK)
+    
