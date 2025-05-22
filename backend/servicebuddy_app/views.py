@@ -311,10 +311,158 @@ class ServiceProviderList(APIView):
             provider["available_time"] = provider.get("available_time", [])
 
         return Response(service_providers, status=status.HTTP_200_OK)
-    
+
+# version 1.0
+# class ServiceRequestCreate(APIView):
+#     """
+#     API endpoint to create a service request.
+#     """
+#     permission_classes = [IsUser]
+
+#     def post(self, request):
+#         serializer = ServiceRequestSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         validated_data = serializer.validated_data
+
+#         # Convert appointment_date to ISO string
+#         appointment_date = validated_data.get("appointment_date")
+#         if appointment_date:
+#             appointment_date_str = appointment_date.isoformat()  # e.g., "2025-03-05"
+#         else:
+#             return Response({"error": "Appointment date is required."}, status=400)
+
+#         provider_id = validated_data["provider_id"]
+#         shift_start = validated_data["shift_start_time"]
+#         shift_end = validated_data["shift_end_time"]
+
+#         # # ✅ Check if the provider already has a booking for the same date and shift
+#         # conflict = MONGO_DB.service_requests.find_one({
+#         #     "provider_id": provider_id,
+#         #     "appointment_date": appointment_date_str,
+#         #     "shift_start_time": shift_start,
+#         #     "shift_end_time": shift_end,
+#         #     "status": {"$in": ["pending", "accept"]},
+#         # })
+
+#         # if conflict:
+#         #     return Response(
+#         #         {"error": "This shift is already booked for the selected date."},
+#         #         status=status.HTTP_409_CONFLICT
+#         #     )
+
+#         # Prepare the service request data
+#         service_request = {
+#             "user_id": request.user["user_id"],
+#             "user_name": request.user["name"],
+#             "provider_id": provider_id,
+#             "description": validated_data.get("description", ""),
+#             "location": validated_data["location"],
+#             "appointment_date": appointment_date_str,
+#             "shift_start_time": shift_start,  # e.g., "08:00"
+#             "shift_end_time": shift_end,      # e.g., "10:00"
+#             "payment_method": validated_data.get("payment_method"),
+#             "status": "pending",
+#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
+#         }
+
+#         result = MONGO_DB.service_requests.insert_one(service_request)
+
+#         # Create a notification for the provider
+#         notification = {
+#             "to": provider_id,
+#             "type": "service_request",
+#             "service_request_id": str(result.inserted_id),
+#             "message": "New service request received.",
+#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
+#         }
+#         MONGO_DB.notifications.insert_one(notification)
+
+#         return Response(
+#             {
+#                 "request_id": str(result.inserted_id),
+#                 "message": "Service request sent."
+#             },
+#             status=status.HTTP_201_CREATED
+#         )
+
+# Version 2.0
+# class ServiceRequestCreate(APIView):
+#     """
+#     API endpoint to create a service request.
+#     Prevents double bookings by checking if the provider already has a booking for the same date and shift.
+#     """
+#     permission_classes = [IsUser]
+
+#     def post(self, request):
+#         serializer = ServiceRequestSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         validated_data = serializer.validated_data
+
+#         # Format appointment date
+#         appointment_date = validated_data.get("appointment_date")
+#         if not appointment_date:
+#             return Response({"error": "Appointment date is required."}, status=400)
+#         appointment_date_str = appointment_date.isoformat()
+
+#         provider_id = validated_data["provider_id"]
+#         shift_start = validated_data["shift_start_time"]
+#         shift_end = validated_data["shift_end_time"]
+
+#         # ✅ Prevent double-booking: check for existing request
+#         conflict = MONGO_DB.service_requests.find_one({
+#             "provider_id": provider_id,
+#             "appointment_date": appointment_date_str,
+#             "shift_start_time": shift_start,
+#             "shift_end_time": shift_end,
+#             "status": {"$in": ["pending", "accepted"]}  # block unconfirmed or active bookings
+#         })
+
+#         if conflict:
+#             return Response(
+#                 {"error": "This shift is already booked for the selected date."},
+#                 status=status.HTTP_409_CONFLICT
+#             )
+
+#         # Proceed to insert new service request
+#         service_request = {
+#             "user_id": request.user["user_id"],
+#             "user_name": request.user["name"],
+#             "provider_id": provider_id,
+#             "description": validated_data.get("description", ""),
+#             "location": validated_data["location"],
+#             "appointment_date": appointment_date_str,
+#             "shift_start_time": shift_start,
+#             "shift_end_time": shift_end,
+#             "payment_method": validated_data.get("payment_method"),
+#             "status": "pending",
+#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
+#         }
+
+#         result = MONGO_DB.service_requests.insert_one(service_request)
+
+#         # Notify provider
+#         notification = {
+#             "to": provider_id,
+#             "type": "service_request",
+#             "service_request_id": str(result.inserted_id),
+#             "message": "New service request received.",
+#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
+#         }
+#         MONGO_DB.notifications.insert_one(notification)
+
+#         return Response(
+#             {
+#                 "request_id": str(result.inserted_id),
+#                 "message": "Service request sent."
+#             },
+#             status=status.HTTP_201_CREATED
+#         )
+
 class ServiceRequestCreate(APIView):
     """
     API endpoint to create a service request.
+    Prevents double bookings by checking if the provider already has a booking for the same date and shift,
+    regardless of which user made the booking.
     """
     permission_classes = [IsUser]
 
@@ -323,33 +471,40 @@ class ServiceRequestCreate(APIView):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        # Convert appointment_date to ISO string
+        # Format appointment date
         appointment_date = validated_data.get("appointment_date")
-        if appointment_date:
-            appointment_date_str = appointment_date.isoformat()  # e.g., "2025-03-05"
-        else:
+        if not appointment_date:
             return Response({"error": "Appointment date is required."}, status=400)
+        appointment_date_str = appointment_date.isoformat()
 
         provider_id = validated_data["provider_id"]
         shift_start = validated_data["shift_start_time"]
         shift_end = validated_data["shift_end_time"]
 
-        # ✅ Check if the provider already has a booking for the same date and shift
+        # ✅ Enhanced conflict check: Look for ANY booking with this provider, date, and time
+        # This will prevent multiple users from booking the same slot
         conflict = MONGO_DB.service_requests.find_one({
             "provider_id": provider_id,
             "appointment_date": appointment_date_str,
             "shift_start_time": shift_start,
             "shift_end_time": shift_end,
-            "status": {"$in": ["pending", "accept"]},
+            "status": {"$in": ["pending", "accept"]}  # block unconfirmed or active bookings
         })
 
         if conflict:
-            return Response(
-                {"error": "This shift is already booked for the selected date."},
-                status=status.HTTP_409_CONFLICT
-            )
+            # Check if this is the same user trying to book again
+            if conflict["user_id"] == request.user["user_id"]:
+                return Response(
+                    {"error": "You have already booked this shift for the selected date."},
+                    status=status.HTTP_409_CONFLICT
+                )
+            else:
+                return Response(
+                    {"error": "This shift is already booked for the selected date by another user."},
+                    status=status.HTTP_409_CONFLICT
+                )
 
-        # Prepare the service request data
+        # Proceed to insert new service request
         service_request = {
             "user_id": request.user["user_id"],
             "user_name": request.user["name"],
@@ -357,8 +512,8 @@ class ServiceRequestCreate(APIView):
             "description": validated_data.get("description", ""),
             "location": validated_data["location"],
             "appointment_date": appointment_date_str,
-            "shift_start_time": shift_start,  # e.g., "08:00"
-            "shift_end_time": shift_end,      # e.g., "10:00"
+            "shift_start_time": shift_start,
+            "shift_end_time": shift_end,
             "payment_method": validated_data.get("payment_method"),
             "status": "pending",
             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
@@ -366,7 +521,7 @@ class ServiceRequestCreate(APIView):
 
         result = MONGO_DB.service_requests.insert_one(service_request)
 
-        # Create a notification for the provider
+        # Notify provider
         notification = {
             "to": provider_id,
             "type": "service_request",
@@ -375,6 +530,15 @@ class ServiceRequestCreate(APIView):
             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
         }
         MONGO_DB.notifications.insert_one(notification)
+        
+        # ✅ Real-time WebSocket push to provider
+        send_notification_to_user(
+            user_id=provider_id,
+            message="You have a new service request.",
+            request_id=str(result.inserted_id),
+            notif_type="info",
+            created_at=notification["created_at"].isoformat()
+        )
 
         return Response(
             {
@@ -1401,4 +1565,38 @@ class AdminGetAllContactQueries(APIView):
                     print(f"Error fetching user profile: {e}")
 
         return Response(queries, status=status.HTTP_200_OK)
+    
+class BookedShiftsView(APIView):
+    """
+    API endpoint to fetch already booked shifts for a provider on a specific date.
+    """
+    permission_classes = []
+
+    def get(self, request):
+        provider_id = request.query_params.get("provider_id")
+        appointment_date = request.query_params.get("date")
+
+        if not provider_id or not appointment_date:
+            return Response({"error": "Missing provider_id or date."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Find bookings that are still active (pending or accepted)
+            bookings = MONGO_DB.service_requests.find({
+                "provider_id": provider_id,
+                "appointment_date": appointment_date,
+                "status": {"$in": ["pending", "accepted"]},
+            })
+
+            booked_shifts = []
+            for booking in bookings:
+                shift_start = booking.get("shift_start_time")
+                shift_end = booking.get("shift_end_time")
+                if shift_start and shift_end:
+                    booked_shifts.append(f"{shift_start} - {shift_end}")
+
+            return Response({"booked_shifts": booked_shifts}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"[BookedShiftsView] Error: {str(e)}")
+            return Response({"error": "Failed to fetch booked shifts."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     

@@ -136,3 +136,7 @@ export const getAdminContactQueries = () => {
 export const createContactQuery = (data) => {
   return API.post('contact/submit/', data);
 }
+
+export const getBookedShifts = (providerId, date) => {
+  return API.get(`booked_shifts/?provider_id=${providerId}&date=${date}`);
+};
