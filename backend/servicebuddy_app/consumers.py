@@ -44,6 +44,33 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             "message": event["message"]
         }))
 
+class ProviderNotificationConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.provider_id = self.scope['url_route']['kwargs']['provider_id']
+        self.group_name = f"notifications_provider_{self.provider_id}"
+
+        print(f"🔌 Connecting WebSocket for provider: {self.provider_id}")
+        try:
+            await self.channel_layer.group_add(self.group_name, self.channel_name)
+            await self.accept()
+            print(f"WebSocket connection accepted for provider {self.provider_id}")
+        except Exception as e:
+            print(f"Error connecting WebSocket for provider {self.provider_id}: {str(e)}")
+            raise
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def send_notification(self, event):
+        print(f"📢 Provider send_notification called with event: {event}")
+        notification = event.get("notification", {})
+        await self.send(text_data=json.dumps({
+            "type": notification.get("type", "info"),
+            "message": notification.get("message", ""),
+            "review_id": notification.get("review_id"),
+            "service_request_id": notification.get("service_request_id"),
+            "created_at": notification.get("created_at"),
+        }))
 
 class ShiftConsumer(AsyncWebsocketConsumer):
     async def connect(self):

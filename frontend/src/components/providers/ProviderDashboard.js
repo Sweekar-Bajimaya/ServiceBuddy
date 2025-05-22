@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useRef } from "react";
 import {
   AppBar,
   Toolbar,
@@ -9,14 +9,13 @@ import {
   Grid,
   Card,
   CardContent,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  TextField,
+  List,
+  ListItem,
+  ListItemText,
   Button,
   CircularProgress,
+  ListItemSecondaryAction,
+  Avatar,
 } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
 import Sidebar from "../common/Sidebar";
@@ -24,22 +23,12 @@ import { AuthContext } from "../../context/AuthContext";
 import { getProviderDashboardSummary } from "../../services/api";
 
 const drawerWidth = 240;
+
 const ProviderDashboard = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useContext(AuthContext);
-
-  // Toggle the sidebar for mobile
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
-
-  // Example data for the table
-  const ticketsData = [
-    { reference: "2025001", date: "January 1, 2025", lastUpdated: "January 3, 2025", subject: "Leaking Pipe in Kitchen", status: "Resolved", priority: "High" },
-    { reference: "2025002", date: "January 5, 2025", lastUpdated: "January 6, 2025", subject: "Electrical Short Circuit", status: "Pending", priority: "Medium" },
-    { reference: "2025003", date: "January 10, 2025", lastUpdated: "January 12, 2025", subject: "Laptop Repair", status: "In Progress", priority: "Low" },
-  ];
+  const wsRef = useRef(null);
 
   const [summary, setSummary] = useState({
     total_requests: 0,
@@ -47,6 +36,16 @@ const ProviderDashboard = () => {
     jobs_in_progress: 0,
     jobs_not_completed: 0,
   });
+
+  const [notifications, setNotifications] = useState([]);
+
+  const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
+
+  const handleMarkAsRead = (id) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  };
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -59,9 +58,42 @@ const ProviderDashboard = () => {
         setLoading(false);
       }
     };
-
     fetchSummary();
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const socket = new WebSocket(`ws://localhost:8000/ws/provider-notifications/${user.id}/`);
+    wsRef.current = socket;
+
+    socket.onopen = () => {
+      console.log("✅ WebSocket connected");
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log("📥 New Notification:", data);
+
+      const notification = {
+        ...data,
+        read: false,
+        id: Date.now() + Math.random(), // unique client-side ID
+      };
+
+      setNotifications((prev) => [notification, ...prev]);
+    };
+
+    socket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    socket.onclose = () => {
+      console.warn("WebSocket disconnected");
+    };
+
+    return () => socket.close();
+  }, [user?.providerId]);
 
   if (loading) {
     return (
@@ -73,31 +105,28 @@ const ProviderDashboard = () => {
 
   return (
     <Box sx={{ display: "flex" }}>
-      {/* Top App Bar */}
       <AppBar
         position="fixed"
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
-          backgroundColor: '#1976d2'
+          backgroundColor: "#1976d2",
         }}
       >
         <Toolbar>
-          <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2, display: { sm: 'none' } }}>
+          <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2, display: { sm: "none" } }}>
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap>
             Dashboard
           </Typography>
-          <Box sx={{ ml: 'auto', fontWeight: 'bold' }}>
-            {user ? `Mr. ${user.name}` : 'Loading...'}
+          <Box sx={{ ml: "auto", fontWeight: "bold" }}>
+            {user ? `Mr. ${user.name}` : "Loading..."}
           </Box>
         </Toolbar>
       </AppBar>
 
-      {/* Sidebar Drawer */}
       <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }} aria-label="sidebar">
-        {/* Mobile Drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -107,16 +136,17 @@ const ProviderDashboard = () => {
         >
           <Sidebar />
         </Drawer>
-
-        {/* Desktop Drawer */}
-        <Drawer variant="permanent" sx={{ display: { xs: "none", sm: "block" }, "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth } }} open>
+        <Drawer
+          variant="permanent"
+          sx={{ display: { xs: "none", sm: "block" }, "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth } }}
+          open
+        >
           <Sidebar />
         </Drawer>
       </Box>
 
-      {/* Main Content */}
       <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}>
-        <Toolbar /> {/* Add space for the AppBar */}
+        <Toolbar />
 
         {/* Summary Cards */}
         <Grid container spacing={2}>
@@ -154,34 +184,45 @@ const ProviderDashboard = () => {
           </Grid>
         </Grid>
 
-        {/* Ticket Table */}
+        {/* Notifications Section */}
         <Box sx={{ mt: 4 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Notifications
+          </Typography>
           <Card>
             <CardContent>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Reference #</TableCell>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Last Updated</TableCell>
-                    <TableCell>Subject</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Priority</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {ticketsData.map((ticket) => (
-                    <TableRow key={ticket.reference}>
-                      <TableCell>{ticket.reference}</TableCell>
-                      <TableCell>{ticket.date}</TableCell>
-                      <TableCell>{ticket.lastUpdated}</TableCell>
-                      <TableCell>{ticket.subject}</TableCell>
-                      <TableCell>{ticket.status}</TableCell>
-                      <TableCell>{ticket.priority}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <List sx={{ maxHeight: 400, overflowY: "auto" }}>
+                {notifications.length === 0 ? (
+                  <Typography>No notifications available.</Typography>
+                ) : (
+                  notifications.map((notif) => (
+                    <ListItem
+                      key={notif.id}
+                      sx={{
+                        backgroundColor: notif.read ? "#f5f5f5" : "#e3f2fd",
+                        borderRadius: 1,
+                        mb: 1,
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      <Avatar sx={{ bgcolor: notif.read ? "grey.400" : "primary.main", mr: 2 }}>
+                        {notif.type === "review" ? "⭐" : "🔔"}
+                      </Avatar>
+                      <ListItemText
+                        primary={notif.message}
+                        secondary={notif.read ? "Read" : "Unread"}
+                      />
+                      {!notif.read && (
+                        <ListItemSecondaryAction>
+                          <Button variant="outlined" size="small" onClick={() => handleMarkAsRead(notif.id)}>
+                            Mark as Read
+                          </Button>
+                        </ListItemSecondaryAction>
+                      )}
+                    </ListItem>
+                  ))
+                )}
+              </List>
             </CardContent>
           </Card>
         </Box>

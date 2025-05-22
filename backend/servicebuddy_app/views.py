@@ -532,8 +532,8 @@ class ServiceRequestCreate(APIView):
         MONGO_DB.notifications.insert_one(notification)
         
         # ✅ Real-time WebSocket push to provider
-        send_notification_to_user(
-            user_id=provider_id,
+        notify_provider(
+            provider_id=provider_id,
             message="You have a new service request.",
             request_id=str(result.inserted_id),
             notif_type="info",
@@ -605,6 +605,22 @@ def send_notification_to_user(user_id, message, request_id, notif_type="info", c
                 "created_at": created_at
             }
         }
+    )
+    
+def notify_provider(provider_id, message, notif_type="info", request_id=None, review_id=None, created_at=None):
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f"notifications_provider_{provider_id}",
+        {
+            "type": "send_notification",
+            "notification": {
+                "type": notif_type,
+                "message": message,
+                "service_request_id": request_id,
+                "review_id": review_id,
+                "created_at": created_at or timezone.now().isoformat(),
+            },
+        },
     )
 
 # -------------------------Provider Management-------------------------
@@ -1420,6 +1436,16 @@ class ReviewCreateView(APIView):
 
         # Insert review into MongoDB
         result = MONGO_DB.reviews.insert_one(review)
+        
+        # ✅ Real-time WebSocket push to provider
+        provider_id = data["provider_id"]  # FIXED
+        notify_provider(
+            provider_id=provider_id,
+            message="You received a new review.",
+            review_id=str(result.inserted_id),
+            notif_type="info",
+            created_at=review["created_at"].isoformat()
+        )
 
         return Response({
             "message": "Review submitted successfully.",
