@@ -309,6 +309,16 @@ class ServiceProviderList(APIView):
         for provider in service_providers:
             provider["_id"] = str(provider["_id"])
             provider["available_time"] = provider.get("available_time", [])
+            
+            # Fetch reviews for this provider
+            reviews = list(MONGO_DB.reviews.find({"provider_id": provider["_id"]}))
+            if reviews:
+                total_rating = sum([review.get("rating", 0) for review in reviews])
+                avg_rating = round(total_rating / len(reviews), 1)
+            else:
+                avg_rating = None  # or 0, depending on your preference
+
+            provider["average_rating"] = avg_rating
 
         return Response(service_providers, status=status.HTTP_200_OK)
 

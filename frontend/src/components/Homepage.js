@@ -274,6 +274,7 @@ const HomePage = () => {
               bgcolor: "#f0f0f0",
             },
           }}
+          onClick={() => navigate("/services")}
         >
           Get Started
         </Button>
