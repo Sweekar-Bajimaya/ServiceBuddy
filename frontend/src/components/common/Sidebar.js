@@ -1,5 +1,13 @@
 import React, { useContext } from "react";
-import { Box, Typography, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from "@mui/material";
+import {
+  Box,
+  Typography,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+} from "@mui/material";
 import {
   Dashboard as DashboardIcon,
   ListAlt as ServiceRequestsIcon,
@@ -9,13 +17,12 @@ import {
   Person as ProfileIcon,
   Logout as LogoutIcon,
   PersonAdd as PersonAddIcon,
-  Reviews as ReviewIcon, 
+  Reviews as ReviewIcon,
   Feedback as FeedbackIcon,
-  
 } from "@mui/icons-material";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
-import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
+import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 
 const Sidebar = () => {
   const { user, logout } = useContext(AuthContext);
@@ -26,13 +33,16 @@ const Sidebar = () => {
     navigate("/login");
   };
 
+  if (!user) {
+    return null; // Prevent rendering sidebar during logout/rendering transition
+  }
+
   return (
     <Box sx={{ textAlign: "left" }}>
       <Typography variant="h5" sx={{ my: 2, textAlign: "center" }}>
         ServiceBuddy
       </Typography>
       <List>
-
         {/* Only visible for Providers */}
         {user?.user_type === "provider" && (
           <>
@@ -73,23 +83,14 @@ const Sidebar = () => {
               </ListItemButton>
             </ListItem>
 
-            {/* <ListItem disablePadding>
-              <ListItemButton>
+            <ListItem disablePadding>
+              <ListItemButton component={Link} to="/provider-profile">
                 <ListItemIcon>
-                  <HistoryIcon />
+                  <ProfileIcon />
                 </ListItemIcon>
-                <ListItemText primary="History" />
+                <ListItemText primary="Profile" />
               </ListItemButton>
             </ListItem>
-
-            <ListItem disablePadding>
-              <ListItemButton>
-                <ListItemIcon>
-                  <MessageIcon />
-                </ListItemIcon>
-                <ListItemText primary="Message" />
-              </ListItemButton>
-            </ListItem> */}
           </>
         )}
 
@@ -133,15 +134,6 @@ const Sidebar = () => {
             </ListItem>
           </>
         )}
-
-        <ListItem disablePadding>
-          <ListItemButton component={Link} to="/provider-profile">
-            <ListItemIcon>
-              <ProfileIcon />
-            </ListItemIcon>
-            <ListItemText primary="Profile" />
-          </ListItemButton>
-        </ListItem>
 
         <ListItem disablePadding>
           <ListItemButton onClick={handleLogout}>

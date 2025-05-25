@@ -206,29 +206,60 @@ class AddServiceProviderView(APIView):
     """
     Allows Admin to register new service providers.
     """
-    permission_classes = [IsAdmin]  # Ensure only admin can register providers
+    permission_classes = [IsAdmin]
 
     def post(self, request):
-        data = request.data.copy()  # Ensure data is mutable
-        data["user_type"] = "provider"  # Explicitly set user type as 'provider'
+        data = request.data.copy()
+        data["user_type"] = "provider"
 
-        print("DEBUG: Data before serializer:", data)  # Debugging
-
-        # Check if the email already exists
+        # Check if provider with same email exists
         if MONGO_DB.providers.find_one({"email": data["email"]}):
             return Response({"error": "Email already registered."}, status=status.HTTP_400_BAD_REQUEST)
-            
+
+        # Store the plain password before serialization (for saving to DB/email)
+        plain_password = data.get("password")
+
         serializer = RegisterSerializer(data=data)
         if serializer.is_valid():
-            print("DEBUG: Validated data:", serializer.validated_data)  # Debugging
+            # Create provider
+            provider = serializer.create(serializer.validated_data)
 
-            provider = serializer.create(serializer.validated_data)  # Save provider
+            # Store plain password in provider document (optional and not recommended for production)
+            MONGO_DB.providers.update_one(
+                {"_id": provider["_id"]},
+                {"$set": {"plain_password": plain_password}}  # Warning: Store securely if at all!
+            )
+
+            # Send welcome email
+            try:
+                send_mail(
+                    subject="Welcome to ServiceBuddy - Provider Account Created",
+                    message=(
+                        f"Hi {provider['name']},\n\n"
+                        f"You have been registered as a service provider on ServiceBuddy.\n\n"
+                        f"Email: {provider['email']}\n"
+                        f"Password: {plain_password}\n\n"
+                        f"You can now log in to your provider dashboard.\n"
+                        f"For your security, please change your password after logging in.\n\n"
+                        f"- ServiceBuddy Team"
+                    ),
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[provider["email"]],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                return Response(
+                    {"error": "Provider created but email failed to send.", "details": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
             return Response(
-                {"message": "Service provider added successfully."},
+                {"message": "Service provider added successfully. Welcome email with login credentials sent."},
                 status=status.HTTP_201_CREATED
             )
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     
 class AdminProvidersListView(APIView):
     """
@@ -321,152 +352,6 @@ class ServiceProviderList(APIView):
             provider["average_rating"] = avg_rating
 
         return Response(service_providers, status=status.HTTP_200_OK)
-
-# version 1.0
-# class ServiceRequestCreate(APIView):
-#     """
-#     API endpoint to create a service request.
-#     """
-#     permission_classes = [IsUser]
-
-#     def post(self, request):
-#         serializer = ServiceRequestSerializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         validated_data = serializer.validated_data
-
-#         # Convert appointment_date to ISO string
-#         appointment_date = validated_data.get("appointment_date")
-#         if appointment_date:
-#             appointment_date_str = appointment_date.isoformat()  # e.g., "2025-03-05"
-#         else:
-#             return Response({"error": "Appointment date is required."}, status=400)
-
-#         provider_id = validated_data["provider_id"]
-#         shift_start = validated_data["shift_start_time"]
-#         shift_end = validated_data["shift_end_time"]
-
-#         # # ✅ Check if the provider already has a booking for the same date and shift
-#         # conflict = MONGO_DB.service_requests.find_one({
-#         #     "provider_id": provider_id,
-#         #     "appointment_date": appointment_date_str,
-#         #     "shift_start_time": shift_start,
-#         #     "shift_end_time": shift_end,
-#         #     "status": {"$in": ["pending", "accept"]},
-#         # })
-
-#         # if conflict:
-#         #     return Response(
-#         #         {"error": "This shift is already booked for the selected date."},
-#         #         status=status.HTTP_409_CONFLICT
-#         #     )
-
-#         # Prepare the service request data
-#         service_request = {
-#             "user_id": request.user["user_id"],
-#             "user_name": request.user["name"],
-#             "provider_id": provider_id,
-#             "description": validated_data.get("description", ""),
-#             "location": validated_data["location"],
-#             "appointment_date": appointment_date_str,
-#             "shift_start_time": shift_start,  # e.g., "08:00"
-#             "shift_end_time": shift_end,      # e.g., "10:00"
-#             "payment_method": validated_data.get("payment_method"),
-#             "status": "pending",
-#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
-#         }
-
-#         result = MONGO_DB.service_requests.insert_one(service_request)
-
-#         # Create a notification for the provider
-#         notification = {
-#             "to": provider_id,
-#             "type": "service_request",
-#             "service_request_id": str(result.inserted_id),
-#             "message": "New service request received.",
-#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
-#         }
-#         MONGO_DB.notifications.insert_one(notification)
-
-#         return Response(
-#             {
-#                 "request_id": str(result.inserted_id),
-#                 "message": "Service request sent."
-#             },
-#             status=status.HTTP_201_CREATED
-#         )
-
-# Version 2.0
-# class ServiceRequestCreate(APIView):
-#     """
-#     API endpoint to create a service request.
-#     Prevents double bookings by checking if the provider already has a booking for the same date and shift.
-#     """
-#     permission_classes = [IsUser]
-
-#     def post(self, request):
-#         serializer = ServiceRequestSerializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         validated_data = serializer.validated_data
-
-#         # Format appointment date
-#         appointment_date = validated_data.get("appointment_date")
-#         if not appointment_date:
-#             return Response({"error": "Appointment date is required."}, status=400)
-#         appointment_date_str = appointment_date.isoformat()
-
-#         provider_id = validated_data["provider_id"]
-#         shift_start = validated_data["shift_start_time"]
-#         shift_end = validated_data["shift_end_time"]
-
-#         # ✅ Prevent double-booking: check for existing request
-#         conflict = MONGO_DB.service_requests.find_one({
-#             "provider_id": provider_id,
-#             "appointment_date": appointment_date_str,
-#             "shift_start_time": shift_start,
-#             "shift_end_time": shift_end,
-#             "status": {"$in": ["pending", "accepted"]}  # block unconfirmed or active bookings
-#         })
-
-#         if conflict:
-#             return Response(
-#                 {"error": "This shift is already booked for the selected date."},
-#                 status=status.HTTP_409_CONFLICT
-#             )
-
-#         # Proceed to insert new service request
-#         service_request = {
-#             "user_id": request.user["user_id"],
-#             "user_name": request.user["name"],
-#             "provider_id": provider_id,
-#             "description": validated_data.get("description", ""),
-#             "location": validated_data["location"],
-#             "appointment_date": appointment_date_str,
-#             "shift_start_time": shift_start,
-#             "shift_end_time": shift_end,
-#             "payment_method": validated_data.get("payment_method"),
-#             "status": "pending",
-#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
-#         }
-
-#         result = MONGO_DB.service_requests.insert_one(service_request)
-
-#         # Notify provider
-#         notification = {
-#             "to": provider_id,
-#             "type": "service_request",
-#             "service_request_id": str(result.inserted_id),
-#             "message": "New service request received.",
-#             "created_at": datetime.utcnow() + timedelta(hours=5, minutes=45)
-#         }
-#         MONGO_DB.notifications.insert_one(notification)
-
-#         return Response(
-#             {
-#                 "request_id": str(result.inserted_id),
-#                 "message": "Service request sent."
-#             },
-#             status=status.HTTP_201_CREATED
-#         )
 
 class ServiceRequestCreate(APIView):
     """
@@ -664,7 +549,8 @@ class ProviderScheduleView(APIView):
 
         bookings = list(MONGO_DB.service_requests.find({
             "provider_id": provider_id,
-            "status": { "$regex": "^(accept|Not Started|In Progress|Complete)$", "$options": "i" }
+            # "status": { "$regex": "^(accept|Not Started|In Progress|Complete)$", "$options": "i" }
+            "status": { "$regex": "^(accept|Not Started|In Progress|Completed)$", "$options": "i" }
         }).sort("created_at", -1))
 
         for booking in bookings:

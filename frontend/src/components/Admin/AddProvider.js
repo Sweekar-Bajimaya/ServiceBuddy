@@ -90,9 +90,10 @@ const AddProvider = () => {
     try {
       await addServiceProvider({
         ...form,
-        available_time: timeShifts
+        available_time: timeShifts,
+        user_type: "provider"
       });
-      showToast("Service Provider Added Successfully!", "success");
+      showToast("Service Provider Added Successfully and to Providers Email!", "success");
 
       setForm({
         name: "",
